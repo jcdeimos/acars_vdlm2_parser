@@ -1,0 +1,16 @@
+[package]
+name = "acars_vdlm2_parser"
+version = "0.1.0"
+edition = "2021"
+authors = ["Alex Austin"]
+description = "Library for decoding and encoding ACARS and VDLM2 messages"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0.140", features = ["derive"] }
+serde_json = "1.0.82"
+
+[dev-dependencies]
+rand = "0.8.5"
+glob = "0.3.0"
