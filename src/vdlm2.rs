@@ -68,6 +68,10 @@ impl Vdlm2Message {
     pub fn set_proxy_details(&mut self, proxied_by: &str, acars_router_version: &str) {
         self.vdl2.app = Some(AppDetails::new(proxied_by, acars_router_version));
     }
+
+    pub fn clear_time(&mut self) {
+        self.vdl2.t = None;
+    }
 }
 
 
@@ -84,13 +88,6 @@ pub struct Vdlm2Message {
 // pub noise_level: f64,
 // pub octets_corrected_by_fec: u16,
 // pub sig_level: f64,
-// pub t: TBlock
-
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct TBlock {
-//     pub sec: u64,
-//     pub usec: u64
-// }
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -103,6 +100,14 @@ pub struct Vdlm2Body {
     pub idx: u16,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub station: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub t: Option<TBlock>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub struct TBlock {
+    pub sec: u64,
+    pub usec: u64
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]

@@ -103,6 +103,15 @@ impl AcarsVdlm2Message {
             }
         }
     }
+
+    pub fn clear_time(&mut self) {
+        match self {
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
+                vdlm2.clear_time(),
+            AcarsVdlm2Message::AcarsMessage(acars) =>
+                acars.clear_time(),
+        }
+    }
 }
 
 /// This will automagically serialise to either a `Vdlm2Message` or `AcarsMessage`.

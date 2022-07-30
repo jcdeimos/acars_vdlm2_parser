@@ -68,11 +68,14 @@ impl AcarsMessage {
     pub fn set_proxy_details(&mut self, proxied_by: &str, acars_router_version: &str) {
         self.app = Some(AppDetails::new(proxied_by, acars_router_version));
     }
+
+    pub fn clear_time(&mut self) {
+        self.timestamp = None;
+    }
 }
 
 // The following entries have been removed from the below structs as they are explicitly not wanted.
 // AcarsMessage:
-// pub timestamp: f64,
 // pub channel: u16,
 // #[serde(skip_serializing_if = "Option::is_none")]
 // pub error: Option<u8>,
@@ -82,6 +85,8 @@ impl AcarsMessage {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct AcarsMessage {
     pub freq: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app: Option<AppDetails>,
     #[serde(skip_serializing_if = "Option::is_none")]
