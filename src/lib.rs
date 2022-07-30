@@ -112,6 +112,15 @@ impl AcarsVdlm2Message {
                 acars.clear_time(),
         }
     }
+
+    pub fn get_time(&self) -> Option<f64> {
+        match self {
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
+                vdlm2.get_time(),
+            AcarsVdlm2Message::AcarsMessage(acars) =>
+                acars.get_time(),
+        }
+    }
 }
 
 /// This will automagically serialise to either a `Vdlm2Message` or `AcarsMessage`.

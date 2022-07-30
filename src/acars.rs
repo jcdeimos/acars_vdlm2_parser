@@ -72,6 +72,13 @@ impl AcarsMessage {
     pub fn clear_time(&mut self) {
         self.timestamp = None;
     }
+
+    pub fn get_time(&self) -> Option<f64> {
+        match &self.timestamp {
+            None => None,
+            Some(timestamp) => Some(*timestamp)
+        }
+    }
 }
 
 // The following entries have been removed from the below structs as they are explicitly not wanted.

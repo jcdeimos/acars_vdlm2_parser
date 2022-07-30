@@ -1,3 +1,4 @@
+use std::num::ParseFloatError;
 use serde::{Serialize, Deserialize};
 use crate::{AppDetails, MessageResult};
 
@@ -71,6 +72,21 @@ impl Vdlm2Message {
 
     pub fn clear_time(&mut self) {
         self.vdl2.t = None;
+    }
+
+    pub fn get_time(&self) -> Option<f64> {
+        match &self.vdl2.t {
+            None => None,
+            Some(time_block) => {
+                // This will do until there's a more elegant solution found.
+                let build_float_string: String = format!("{}.{}", time_block.sec, time_block.usec);
+                let parse_f64: Result<f64, ParseFloatError> = build_float_string.parse::<f64>();
+                match parse_f64 {
+                    Err(_) => None,
+                    Ok(value) => Some(value)
+                }
+            }
+        }
     }
 }
 
