@@ -108,7 +108,6 @@ pub struct Vdlm2Message {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct Vdlm2Body {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub app: Option<AppDetails>,
     pub avlc: AvlcData,
     pub burst_len_octets: u16,
