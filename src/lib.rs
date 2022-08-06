@@ -139,6 +139,8 @@ pub enum AcarsVdlm2Message {
 /// This does not normally exist on `AcarsMessage` and has been added as part of the implementation for the acars_router project.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct AppDetails {
+    pub name: String,
+    pub ver: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub proxied: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -151,12 +153,14 @@ impl AppDetails {
     /// Creates a new instance of `AppDetails` with the provided details.
     /// ```
     /// use acars_vdlm2_parser::AppDetails;
-    /// let manual: AppDetails = AppDetails { proxied: Some(true), proxied_by: Some("test".to_string()), acars_router_version: Some("1.0.4".to_string()) };
+    /// let manual: AppDetails = AppDetails { name: "".to_string(), ver: "".to_string(),proxied: Some(true), proxied_by: Some("test".to_string()), acars_router_version: Some("1.0.4".to_string()) };
     /// let generated: AppDetails = AppDetails::new("test", "1.0.4");
     /// assert_eq!(manual, generated);
     /// ```
     pub fn new(proxied_by: &str, acars_router_version: &str) -> Self {
         Self {
+            name: "".to_string(),
+            ver: "".to_string(),
             proxied: Some(true),
             proxied_by: Some(proxied_by.to_string()),
             acars_router_version: Some(acars_router_version.to_string()),
