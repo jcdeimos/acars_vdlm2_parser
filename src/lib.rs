@@ -104,6 +104,7 @@ impl AcarsVdlm2Message {
         }
     }
 
+    /// Clears the time details from the message.
     pub fn clear_time(&mut self) {
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
@@ -119,6 +120,62 @@ impl AcarsVdlm2Message {
                 vdlm2.get_time(),
             AcarsVdlm2Message::AcarsMessage(acars) =>
                 acars.get_time(),
+        }
+    }
+    
+    pub fn clear_freq_skew(&mut self) {
+        match self {
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_freq_skew(),
+            AcarsVdlm2Message::AcarsMessage(_) => {}
+        }
+    }
+    
+    pub fn clear_hdr_bits_fixed(&mut self) {
+        match self {
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_hdr_bits_fixed(),
+            AcarsVdlm2Message::AcarsMessage(_) => {}
+        }
+    }
+    
+    pub fn clear_noise_level(&mut self) {
+        match self {
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_noise_level(),
+            AcarsVdlm2Message::AcarsMessage(_) => {}
+        }
+    }
+    
+    pub fn clear_octets_corrected_by_fec(&mut self) {
+        match self {
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_octets_corrected_by_fec(),
+            AcarsVdlm2Message::AcarsMessage(_) => {}
+        }
+    }
+    
+    pub fn clear_sig_level(&mut self) {
+        match self {
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_sig_level(),
+            AcarsVdlm2Message::AcarsMessage(_) => {}
+        }
+    }
+    
+    pub fn clear_channel(&mut self) {
+        match self {
+            AcarsVdlm2Message::Vdlm2Message(_) => {}
+            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_channel()
+        }
+    }
+    
+    pub fn clear_error(&mut self) {
+        match self {
+            AcarsVdlm2Message::Vdlm2Message(_) => {}
+            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_error()
+        }
+    }
+    
+    pub fn clear_level(&mut self) {
+        match self {
+            AcarsVdlm2Message::Vdlm2Message(_) => {}
+            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_level()
         }
     }
 }
@@ -171,17 +228,18 @@ impl AppDetails {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::acars::{AcarsMessage, NewAcarsMessage};
-    use crate::vdlm2::{NewVdlm2Message, Vdlm2Message};
+    use std::fs::File;
+    use std::io;
+    use std::io::{BufRead, BufReader};
+    use std::path::Path;
+    use chrono::{DateTime, Duration, Utc};
     use glob::{glob, GlobResult, Paths, PatternError};
     use rand::rngs::ThreadRng;
     use rand::seq::SliceRandom;
     use rand::thread_rng;
     use serde_json::Value;
-    use std::fs::File;
-    use std::io;
-    use std::io::{BufRead, BufReader};
-    use std::path::Path;
+    use crate::vdlm2::{NewVdlm2Message, Vdlm2Message};
+    use crate::acars::{AcarsMessage, NewAcarsMessage};
 
     /// Enum for indicating test data type.
     enum MessageType {
@@ -194,6 +252,35 @@ mod tests {
     struct TestFile {
         name: String,
         contents: Vec<String>,
+    }
+    
+    struct Stopwatch {
+        start: Option<DateTime<Utc>>,
+        stop: Option<DateTime<Utc>>,
+        duration: Option<Duration>
+    }
+    
+    #[allow(dead_code)]
+    impl Stopwatch {
+        fn start() -> Self {
+            Self {
+                start: Some(Utc::now()),
+                stop: None,
+                duration: None
+            }
+        }
+        fn stop(&mut self) {
+            self.stop = Some(Utc::now());
+            if let (Some(stop), Some(start)) = (self.stop, self.start) {
+                self.duration = Some(stop - start);
+            }
+        }
+        fn duration_ms(&self) -> Option<i64> {
+            match self.duration {
+                Some(duration) => Some(duration.num_milliseconds()),
+                None => None
+            }
+        }
     }
 
     /// Trait for appending data.
@@ -425,7 +512,7 @@ mod tests {
         }
     }
 
-    fn test_enum_serialisation(message: AcarsVdlm2Message) {
+    fn test_enum_serialisation(message: &AcarsVdlm2Message) {
         let encoded_string: MessageResult<String> = message.to_string();
         assert_eq!(
             encoded_string.as_ref().err().is_none(),
@@ -584,7 +671,7 @@ mod tests {
                 }
                 successfully_decoded_items.shuffle(&mut rng);
                 for message in successfully_decoded_items {
-                    test_enum_serialisation(message);
+                    test_enum_serialisation(&message);
                 }
                 for line in failed_decodes {
                     let library_parse_error: Option<serde_json::Error> =
@@ -593,6 +680,110 @@ mod tests {
                         serde_json::from_str(&line);
                     compare_errors(library_parse_error, serde_value_error, &line);
                 }
+                Ok(())
+            }
+        }
+    }
+    
+    #[test]
+    #[ignore]
+    fn test_serialisation_deserialisation_speed() -> Result<(), Box<dyn std::error::Error>> {
+        println!("Starting a speed test of 100 rounds");
+        let load_all_messages: Result<Vec<String>, Box<dyn std::error::Error>> =
+            combine_files_of_message_type(MessageType::All);
+        match load_all_messages {
+            Err(load_error) => Err(load_error),
+            Ok(mut all_messages) => {
+                println!("Loaded data successfully");
+                let mut rng: ThreadRng = thread_rng();
+                let mut successfully_decoded_items: Vec<AcarsVdlm2Message> = Vec::new();
+                let mut all_deserialisation_run_durations: Vec<Duration> = Vec::new();
+                let mut all_serialisation_run_durations: Vec<Duration> = Vec::new();
+                let mut additive_serialisation_run_durations: Vec<Duration> = Vec::new();
+                let total_run_start: DateTime<Utc> = Utc::now();
+                for run in 0..100 {
+                    println!("Run {} =>", run);
+                    all_messages.shuffle(&mut rng);
+                    let mut run_deserialisation_successful_items: Vec<AcarsVdlm2Message> = Vec::new();
+                    let deserialisation_run_start: DateTime<Utc> = Utc::now();
+                    for entry in &all_messages {
+                        let parsed_message: MessageResult<AcarsVdlm2Message> = entry.decode_message();
+                        match parsed_message {
+                            Err(_) => {}
+                            Ok(decoded_message) => {
+                                successfully_decoded_items.push(decoded_message.clone());
+                                run_deserialisation_successful_items.push(decoded_message.clone());
+                            }
+                        }
+                    }
+                    let deserialisation_run_stop: DateTime<Utc> = Utc::now();
+                    let deserialisation_run_duration: Duration = deserialisation_run_stop - deserialisation_run_start;
+                    println!("Run added {} successful items", run_deserialisation_successful_items.len());
+                    println!("Deserialisation duration: {}ms", deserialisation_run_duration.num_milliseconds());
+                    all_serialisation_run_durations.push(deserialisation_run_duration);
+                    all_deserialisation_run_durations.push(deserialisation_run_duration);
+                    successfully_decoded_items.shuffle(&mut rng);
+                    run_deserialisation_successful_items.shuffle(&mut rng);
+                    let serialisation_run_start: DateTime<Utc> = Utc::now();
+                    for message in &run_deserialisation_successful_items {
+                        test_enum_serialisation(message);
+                    }
+                    let serialisation_run_stop: DateTime<Utc> = Utc::now();
+                    let serialisation_run_duration: Duration = serialisation_run_stop - serialisation_run_start;
+                    println!("Run only serialisation duration: {}ms", serialisation_run_duration.num_milliseconds());
+                    println!("Decoded items now contains {} items", successfully_decoded_items.len());
+                    let additive_serialisation_run_start: DateTime<Utc> = Utc::now();
+                    for message in &successfully_decoded_items {
+                        test_enum_serialisation(message);
+                    }
+                    let additive_serialisation_run_stop: DateTime<Utc> = Utc::now();
+                    let additive_serialisation_run_duration: Duration = additive_serialisation_run_stop - additive_serialisation_run_start;
+                    println!("Cumulative Run Serialisation duration: {}ms", additive_serialisation_run_duration.num_milliseconds());
+                    additive_serialisation_run_durations.push(additive_serialisation_run_duration);
+                }
+                successfully_decoded_items.shuffle(&mut rng);
+                let final_cumulative_serialisation_run_start: DateTime<Utc> = Utc::now();
+                for message in &successfully_decoded_items {
+                    test_enum_serialisation(message);
+                }
+                let final_cumulative_serialisation_run_stop: DateTime<Utc> = Utc::now();
+                let final_cumulative_serialisation_run_duration: Duration = final_cumulative_serialisation_run_stop - final_cumulative_serialisation_run_start;
+                let total_run_stop: DateTime<Utc> = Utc::now();
+                let total_run_duration: Duration = total_run_stop - total_run_start;
+                additive_serialisation_run_durations.sort_by(|a, b | a.num_milliseconds().cmp(&b.num_milliseconds()));
+                let mut additive_serialisation_run_gaps: Vec<i64> = additive_serialisation_run_durations.windows(2).map(|w| w[1].num_milliseconds() - w[0].num_milliseconds()).collect::<Vec<i64>>();
+                additive_serialisation_run_gaps.sort_by(|a, b| a.cmp(&b));
+                let shortest_additive_serialisation_run_gaps: Option<&i64> = additive_serialisation_run_gaps.first();
+                let longest_additive_serialisation_run_gaps: Option<&i64> = additive_serialisation_run_gaps.last();
+                let middle_additive_serialisation_run_gaps: usize = additive_serialisation_run_gaps.len() / 2;
+                let average_additive_serialisation_run_gaps: i64 = additive_serialisation_run_gaps[middle_additive_serialisation_run_gaps];
+                all_deserialisation_run_durations.sort_by(|a, b | a.num_milliseconds().cmp(&b.num_milliseconds()));
+                let shortest_deserialisation_run: Option<&Duration> = all_deserialisation_run_durations.first();
+                let longest_deserialisation_run: Option<&Duration> = all_deserialisation_run_durations.last();
+                let middle_deserialisation_run: usize = all_deserialisation_run_durations.len() / 2;
+                let average_deserialisation_run: Duration = all_deserialisation_run_durations[middle_deserialisation_run];
+                all_serialisation_run_durations.sort_by(|a, b| a.num_milliseconds().cmp(&b.num_milliseconds()));
+                let shortest_serialisation_run: Option<&Duration> = all_serialisation_run_durations.first();
+                let longest_serialisation_run: Option<&Duration> = all_serialisation_run_durations.last();
+                let middle_serialisation_run: usize = all_serialisation_run_durations.len() / 2;
+                let average_serialisation_run: Duration = all_serialisation_run_durations[middle_serialisation_run];
+                println!("Speed test completed!");
+                println!("Total Serialisation runs: {}", additive_serialisation_run_durations.len());
+                if let (Some(shortest_run), Some(longest_run)) = (shortest_serialisation_run, longest_serialisation_run) {
+                    println!("Serialisation run stats:\nShortest: {}ms\nLongest: {}ms\nAverage: {}ms",
+                             shortest_run.num_milliseconds(), longest_run.num_milliseconds(), average_serialisation_run.num_milliseconds());
+                }
+                println!("Total Serialisation runs: {}", all_deserialisation_run_durations.len());
+                if let (Some(shortest_run), Some(longest_run)) = (shortest_deserialisation_run, longest_deserialisation_run) {
+                    println!("Deserialisation run stats:\nShortest: {}ms\nLongest: {}ms\nAverage: {}ms",
+                             shortest_run.num_milliseconds(), longest_run.num_milliseconds(), average_deserialisation_run.num_milliseconds());
+                }
+                if let (Some(shortest_run), Some(longest_run)) = (shortest_additive_serialisation_run_gaps, longest_additive_serialisation_run_gaps) {
+                    println!("Additive Serialisation run stats:\nShortest gap: {}ms\nLongest gap: {}ms\nAverage: {}ms",
+                             shortest_run, longest_run, average_additive_serialisation_run_gaps);
+                }
+                println!("Last Deserialisation of {} items completed in: {}ms", successfully_decoded_items.len(), final_cumulative_serialisation_run_duration.num_milliseconds());
+                println!("Total run completed in: {}ms", total_run_duration.num_milliseconds());
                 Ok(())
             }
         }

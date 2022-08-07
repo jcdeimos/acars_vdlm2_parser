@@ -79,19 +79,28 @@ impl AcarsMessage {
             Some(timestamp) => Some(*timestamp)
         }
     }
+    
+    pub fn clear_channel(&mut self) {
+        self.channel = None;
+    }
+    
+    pub fn clear_error(&mut self) {
+        self.error = None;
+    }
+    
+    pub fn clear_level(&mut self) {
+        self.level = None;
+    }
 }
-
-// The following entries have been removed from the below structs as they are explicitly not wanted.
-// AcarsMessage:
-// pub channel: u16,
-// #[serde(skip_serializing_if = "Option::is_none")]
-// pub error: Option<u8>,
-// #[serde(skip_serializing_if = "Option::is_none")]
-// pub level: Option<LevelType>,
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct AcarsMessage {
     pub freq: f64,
+    pub channel: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level: Option<LevelType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]

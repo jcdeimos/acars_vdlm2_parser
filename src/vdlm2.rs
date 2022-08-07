@@ -88,6 +88,26 @@ impl Vdlm2Message {
             }
         }
     }
+    
+    pub fn clear_freq_skew(&mut self) {
+        self.vdl2.freq_skew = None;
+    }
+    
+    pub fn clear_hdr_bits_fixed(&mut self) {
+        self.vdl2.hdr_bits_fixed = None;
+    }
+    
+    pub fn clear_noise_level(&mut self) {
+        self.vdl2.noise_level = None;
+    }
+    
+    pub fn clear_octets_corrected_by_fec(&mut self) {
+        self.vdl2.octets_corrected_by_fec = None;
+    }
+    
+    pub fn clear_sig_level(&mut self) {
+        self.vdl2.sig_level = None;
+    }
 }
 
 
@@ -96,14 +116,6 @@ pub struct Vdlm2Message {
     pub vdl2: Vdlm2Body
 }
 
-// The following items have been removed from the below structs as they are currently being explicitly ignored.
-//
-// Vdlm2Body
-// pub freq_skew: f64,
-// pub hdr_bits_fixed: u16,
-// pub noise_level: f64,
-// pub octets_corrected_by_fec: u16,
-// pub sig_level: f64,
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -113,6 +125,11 @@ pub struct Vdlm2Body {
     pub burst_len_octets: u16,
     pub freq: u64,
     pub idx: u16,
+    pub freq_skew: Option<f64>,
+    pub hdr_bits_fixed: Option<u16>,
+    pub noise_level: Option<f64>,
+    pub octets_corrected_by_fec: Option<u16>,
+    pub sig_level: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub station: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
