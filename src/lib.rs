@@ -227,6 +227,8 @@ impl AppDetails {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+    use std::ffi::OsStr;
     use super::*;
     use std::fs::File;
     use std::io;
@@ -255,31 +257,83 @@ mod tests {
     }
     
     struct Stopwatch {
-        start: Option<DateTime<Utc>>,
-        stop: Option<DateTime<Utc>>,
-        duration: Option<Duration>
+        timer: String,
+        start_time: Option<DateTime<Utc>>,
+        stop_time: Option<DateTime<Utc>>,
+        duration_ms: Option<i64>,
+        duration_ns: Option<i64>
+        
     }
     
-    #[allow(dead_code)]
     impl Stopwatch {
-        fn start() -> Self {
+        fn start(timer: &str) -> Self {
             Self {
-                start: Some(Utc::now()),
-                stop: None,
-                duration: None
+                timer: timer.to_string(),
+                start_time: Some(Utc::now()),
+                stop_time: None,
+                duration_ms: None,
+                duration_ns: None
             }
         }
         fn stop(&mut self) {
-            self.stop = Some(Utc::now());
-            if let (Some(stop), Some(start)) = (self.stop, self.start) {
-                self.duration = Some(stop - start);
+            self.stop_time = Some(Utc::now());
+            if let (Some(stop), Some(start)) = (self.stop_time, self.start_time) {
+                let duration: Duration = stop - start;
+                self.duration_ms = Some(duration.num_milliseconds());
+                self.duration_ns = duration.num_nanoseconds();
             }
         }
         fn duration_ms(&self) -> Option<i64> {
-            match self.duration {
-                Some(duration) => Some(duration.num_milliseconds()),
+            match self.duration_ms {
+                Some(duration) => Some(duration),
                 None => None
             }
+        }
+        fn duration_ns(&self) -> Option<i64> {
+            match self.duration_ns {
+                Some(duration) => Some(duration),
+                None => None
+            }
+        }
+    }
+    
+    struct RunDurations {
+        all_deser_run_ms: Vec<i64>,
+        all_deser_run_ns: Vec<i64>,
+        all_ser_run_ms: Vec<i64>,
+        all_ser_run_ns: Vec<i64>,
+        add_ser_run_ms: Vec<i64>,
+        add_ser_run_ns: Vec<i64>
+    }
+    
+    impl RunDurations {
+        fn new() -> Self {
+            Self {
+                all_deser_run_ms: Vec::new(),
+                all_deser_run_ns: Vec::new(),
+                all_ser_run_ms: Vec::new(),
+                all_ser_run_ns: Vec::new(),
+                add_ser_run_ms: Vec::new(),
+                add_ser_run_ns: Vec::new()
+            }
+        }
+        fn deser_ms(&mut self, duration: &i64) {
+            self.all_deser_run_ms.push(*duration);
+        }
+        fn deser_ns(&mut self, duration: &i64) {
+            self.all_deser_run_ns.push(*duration);
+        }
+        fn ser_ms(&mut self, duration: &i64) {
+            self.all_ser_run_ms.push(*duration);
+        }
+        fn ser_ns(&mut self, duration: &i64) {
+            self.all_ser_run_ns.push(*duration);
+        }
+        fn add_ser_ms(&mut self, duration: &i64) {
+            self.add_ser_run_ms.push(*duration);
+        }
+        fn add_ser_ns(&mut self, duration: &i64) {
+            self.add_ser_run_ns.push(*duration);
         }
     }
 
@@ -287,7 +341,7 @@ mod tests {
     ///
     /// Using a trait to allow for implementation against `Vec<TestFile>`.
     trait AppendData {
-        fn append_data(&mut self, file: GlobResult) -> Result<(), Box<dyn std::error::Error>>;
+        fn append_data(&mut self, file: GlobResult) -> Result<(), Box<dyn Error>>;
     }
 
     /// Implementing the trait `AppendData` for `Vec<TestFile>`.
@@ -296,20 +350,20 @@ mod tests {
         ///
         /// This is used for running the tests `show_vdlm2_ingest` and `show_acars_ingest`.
         /// These tests are ignored by default and have to be run seperately.
-        fn append_data(&mut self, file: GlobResult) -> Result<(), Box<dyn std::error::Error>> {
+        fn append_data(&mut self, file: GlobResult) -> Result<(), Box<dyn Error>> {
             match file {
                 Err(glob_error) => Err(glob_error.into()),
                 Ok(target_file) => {
-                    let open_file = File::open(target_file.as_path());
+                    let open_file: Result<File, io::Error> = File::open(target_file.as_path());
                     match open_file {
                         Err(file_error) => Err(file_error.into()),
                         Ok(file) => {
-                            let read_file: io::Result<Vec<String>> =
+                            let read_file: Result<Vec<String>, io::Error> =
                                 BufReader::new(file).lines().collect();
                             match read_file {
                                 Err(read_error) => Err(read_error.into()),
                                 Ok(contents) => {
-                                    let get_filename = target_file.file_name();
+                                    let get_filename: Option<&OsStr> = target_file.file_name();
                                     match get_filename {
                                         None => Err("Could not get file name".into()),
                                         Some(file_name) => {
@@ -342,13 +396,13 @@ mod tests {
     /// This is used for combining the contents of multiple files into a single `Vec<String>` for testing.
     fn combine_found_files(
         find_files: Result<Paths, PatternError>,
-    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<String>, Box<dyn Error>> {
         match find_files {
             Err(pattern_error) => Err(pattern_error.into()),
             Ok(file_paths) => {
                 let mut loaded_contents: Vec<String> = Vec::new();
                 for file in file_paths {
-                    let append_data = append_lines(file, &mut loaded_contents);
+                    let append_data: Result<(), Box<dyn Error>> = append_lines(file, &mut loaded_contents);
                     if let Err(append_failed) = append_data {
                         return Err(append_failed);
                     }
@@ -361,13 +415,13 @@ mod tests {
     /// Assistance function for building a `Vec<TestFile>` for use with the tests that show parsing output.
     fn load_found_files(
         find_files: Result<Paths, PatternError>,
-    ) -> Result<Vec<TestFile>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<TestFile>, Box<dyn Error>> {
         match find_files {
             Err(pattern_error) => Err(pattern_error.into()),
             Ok(file_paths) => {
                 let mut test_files: Vec<TestFile> = Vec::new();
                 for file in file_paths {
-                    let load_test_file = test_files.append_data(file);
+                    let load_test_file: Result<(), Box<dyn Error>> = test_files.append_data(file);
                     if let Err(load_failed) = load_test_file {
                         return Err(load_failed);
                     }
@@ -381,7 +435,7 @@ mod tests {
     fn append_lines(
         file: GlobResult,
         data: &mut Vec<String>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), Box<dyn Error>> {
         match file {
             Err(file_error) => Err(file_error.into()),
             Ok(file_path) => {
@@ -402,7 +456,7 @@ mod tests {
     /// Assistance function that combines contents of message type test files.
     fn combine_files_of_message_type(
         message_type: MessageType,
-    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<String>, Box<dyn Error>> {
         match message_type {
             MessageType::Acars => {
                 let find_files: Result<Paths, PatternError> = glob("test_files/acars*");
@@ -422,7 +476,7 @@ mod tests {
     /// Assistance function that loads contents of individual message type test files and returns them separately instead of combined.
     fn load_files_of_message_type(
         message_type: MessageType,
-    ) -> Result<Vec<TestFile>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<TestFile>, Box<dyn Error>> {
         match message_type {
             MessageType::Acars => {
                 let find_files: Result<Paths, PatternError> = glob("test_files/acars*");
@@ -530,14 +584,173 @@ mod tests {
             encoded_bytes.as_ref().err()
         );
     }
+    
+    /// Trait for performing speed tests.
+    trait SpeedTest {
+        fn speed_test(&self) -> Result<(), Box<dyn Error>>;
+    }
+    
+    /// `SpeedTest` implemented for `i32`
+    ///
+    /// Run x iterations, invoked as `int.speed_test()`
+    impl SpeedTest for i32 {
+        fn speed_test(&self) -> Result<(), Box<dyn Error>> {
+            println!("Starting a speed test of {} rounds", self);
+            let load_all_messages: Result<Vec<String>, Box<dyn Error>> =
+                combine_files_of_message_type(MessageType::All);
+            match load_all_messages {
+                Err(load_error) => Err(load_error),
+                Ok(mut all_messages) => {
+                    println!("Loaded data successfully");
+                    let mut rng: ThreadRng = thread_rng();
+                    let mut successfully_decoded_items: Vec<AcarsVdlm2Message> = Vec::new();
+                    let mut run_durations: RunDurations = RunDurations::new();
+                    let mut total_run_stopwatch: Stopwatch = Stopwatch::start("Total Run");
+                    for run in 0..*self {
+                        println!("Run {} =>", run);
+                        all_messages.shuffle(&mut rng);
+                        let mut run_deserialisation_successful_items: Vec<AcarsVdlm2Message> = Vec::new();
+                        let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start("Deserialisation");
+                        for entry in &all_messages {
+                            let parsed_message: MessageResult<AcarsVdlm2Message> = entry.decode_message();
+                            match parsed_message {
+                                Err(_) => {}
+                                Ok(decoded_message) => {
+                                    successfully_decoded_items.push(decoded_message.clone());
+                                    run_deserialisation_successful_items.push(decoded_message.clone());
+                                }
+                            }
+                        }
+                        deserialisation_run_stopwatch.stop();
+                        println!("Run added {} successful items", run_deserialisation_successful_items.len());
+                        match (deserialisation_run_stopwatch.duration_ms(), deserialisation_run_stopwatch.duration_ns()) {
+                            (Some(ms), None) => {
+                                println!("{} duration: {}ms", ms, deserialisation_run_stopwatch.timer);
+                                run_durations.deser_ms(&ms);
+                            },
+                            (None, Some(ns)) => {
+                                println!("{} duration: {}ns", deserialisation_run_stopwatch.timer, ns);
+                                run_durations.deser_ns(&ns);
+                            },
+                            (Some(ms), Some(ns)) => {
+                                println!("{} duration: {}ms ({}ns)", deserialisation_run_stopwatch.timer, ms, ns);
+                                run_durations.deser_ms(&ms);
+                                run_durations.deser_ns(&ns);
+                            },
+                            (_, _) => println!("Unknown {} duration for this run", deserialisation_run_stopwatch.timer)
+                        }
+                        successfully_decoded_items.shuffle(&mut rng);
+                        run_deserialisation_successful_items.shuffle(&mut rng);
+                        let mut serialisation_run_stopwatch: Stopwatch = Stopwatch::start("Serialisation");
+                        for message in &run_deserialisation_successful_items {
+                            test_enum_serialisation(message);
+                        }
+                        serialisation_run_stopwatch.stop();
+                        match (serialisation_run_stopwatch.duration_ms(), serialisation_run_stopwatch.duration_ns()) {
+                            (Some(ms), None) => {
+                                println!("{} duration: {}ms", ms, serialisation_run_stopwatch.timer);
+                                run_durations.ser_ms(&ms);
+                            },
+                            (None, Some(ns)) => {
+                                println!("{} duration: {}ns", serialisation_run_stopwatch.timer, ns);
+                                run_durations.ser_ns(&ns);
+                            },
+                            (Some(ms), Some(ns)) => {
+                                println!("{} duration: {}ms ({}ns)", serialisation_run_stopwatch.timer, ms, ns);
+                                run_durations.ser_ms(&ms);
+                                run_durations.ser_ns(&ns);
+                            },
+                            (_, _) => println!("Unknown {} duration for this run", serialisation_run_stopwatch.timer)
+                        }
+                        println!("Decoded items now contains {} items", successfully_decoded_items.len());
+                        let mut additive_serialisation_run_stopwatch: Stopwatch = Stopwatch::start("Cumulative Run Serialisation");
+                        for message in &successfully_decoded_items {
+                            test_enum_serialisation(message);
+                        }
+                        additive_serialisation_run_stopwatch.stop();
+                        match (additive_serialisation_run_stopwatch.duration_ms(), additive_serialisation_run_stopwatch.duration_ns()) {
+                            (Some(ms), None) => {
+                                println!("{} duration: {}ms", ms, additive_serialisation_run_stopwatch.timer);
+                                run_durations.add_ser_ms(&ms);
+                            },
+                            (None, Some(ns)) => {
+                                println!("{} duration: {}ns", additive_serialisation_run_stopwatch.timer, ns);
+                                run_durations.add_ser_ns(&ns);
+                            },
+                            (Some(ms), Some(ns)) => {
+                                println!("{} duration: {}ms ({}ns)", additive_serialisation_run_stopwatch.timer, ms, ns);
+                                run_durations.add_ser_ms(&ms);
+                                run_durations.add_ser_ns(&ns);
+                            },
+                            (_, _) => println!("Unknown {} duration for this run", additive_serialisation_run_stopwatch.timer)
+                        }
+                    }
+                    successfully_decoded_items.shuffle(&mut rng);
+                    let mut final_cumulative_serialisation_stopwatch: Stopwatch = Stopwatch::start("Cumulative Serialisation");
+                    for message in &successfully_decoded_items {
+                        test_enum_serialisation(message);
+                    }
+                    final_cumulative_serialisation_stopwatch.stop();
+                    total_run_stopwatch.stop();
+                    run_durations.add_ser_run_ms.sort_by(|a, b | a.cmp(&b));
+                    let mut additive_serialisation_run_gaps: Vec<i64> = run_durations.add_ser_run_ms.windows(2).map(|w| w[1] - w[0]).collect::<Vec<i64>>();
+                    additive_serialisation_run_gaps.sort_by(|a, b| a.cmp(&b));
+                    let shortest_additive_serialisation_run_gaps: Option<&i64> = additive_serialisation_run_gaps.first();
+                    let longest_additive_serialisation_run_gaps: Option<&i64> = additive_serialisation_run_gaps.last();
+                    let middle_additive_serialisation_run_gaps: usize = additive_serialisation_run_gaps.len() / 2;
+                    let average_additive_serialisation_run_gaps: i64 = additive_serialisation_run_gaps[middle_additive_serialisation_run_gaps];
+                    run_durations.all_deser_run_ms.sort_by(|a, b | a.cmp(&b));
+                    let shortest_deserialisation_run: Option<&i64> = run_durations.all_deser_run_ms.first();
+                    let longest_deserialisation_run: Option<&i64> = run_durations.all_deser_run_ms.last();
+                    let middle_deserialisation_run: usize = run_durations.all_deser_run_ms.len() / 2;
+                    let average_deserialisation_run: i64 = run_durations.all_deser_run_ms[middle_deserialisation_run];
+                    run_durations.all_ser_run_ms.sort_by(|a, b| a.cmp(&b));
+                    let shortest_serialisation_run: Option<&i64> = run_durations.all_ser_run_ms.first();
+                    let longest_serialisation_run: Option<&i64> = run_durations.all_ser_run_ms.last();
+                    let middle_serialisation_run: usize = run_durations.all_ser_run_ms.len() / 2;
+                    let average_serialisation_run: i64 = run_durations.all_ser_run_ms[middle_serialisation_run];
+                    println!("Speed test completed!");
+                    println!("Total Serialisation runs: {}", run_durations.add_ser_run_ms.len());
+                    output_speed_test_ranges("Serialisation", shortest_serialisation_run, longest_serialisation_run, &average_serialisation_run);
+                    println!("Total Serialisation runs: {}", run_durations.all_deser_run_ms.len());
+                    output_speed_test_ranges("Deserialisation", shortest_deserialisation_run, longest_deserialisation_run, &average_deserialisation_run);
+                    output_speed_test_gaps("Additive Serialisation", shortest_additive_serialisation_run_gaps, longest_additive_serialisation_run_gaps, &average_additive_serialisation_run_gaps);
+                    if let Some(duration_ms) = final_cumulative_serialisation_stopwatch.duration_ms() {
+                        println!("Last Deserialisation of {} items completed in: {}ms", successfully_decoded_items.len(), duration_ms);
+                    }
+                    match (total_run_stopwatch.duration_ms(), total_run_stopwatch.duration_ns()) {
+                        (Some(ms), None) => println!("{} duration: {}ms", ms, total_run_stopwatch.timer),
+                        (None, Some(ns)) => println!("{} duration: {}ns", total_run_stopwatch.timer, ns),
+                        (Some(ms), Some(ns)) => println!("{} duration: {}ms ({}ns)", total_run_stopwatch.timer, ms, ns),
+                        (_, _) => println!("Unknown {} duration for this run", total_run_stopwatch.timer)
+                    }
+                    Ok(())
+                }
+            }
+        }
+    }
+    
+    fn output_speed_test_ranges(test_type: &str, shortest: Option<&i64>, longest: Option<&i64>, average: &i64) {
+        if let (Some(shortest_run), Some(longest_run)) = (shortest, longest) {
+            println!("{} run stats:\nShortest: {}ms\nLongest: {}ms\nAverage: {}ms",
+                     test_type, shortest_run, longest_run, average);
+        }
+    }
+    
+    fn output_speed_test_gaps(test_type: &str, shortest: Option<&i64>, longest: Option<&i64>, average: &i64) {
+        if let (Some(shortest_run), Some(longest_run)) = (shortest, longest) {
+            println!("{} run stats:\nShortest gap: {}ms\nLongest gap: {}ms\nAverage: {}ms",
+                     test_type, shortest_run, longest_run, average);
+        }
+    }
 
     /// This test will ingest contents from the vdlm2 sample files as a message per line to a `Vec<String>`.
     /// It combines the two files together into a single `Vec<String>` for iterating through.
     /// Then it will cycle them into `Vec<Vdlm2Message>` and back to `String`.
     /// It validates that there are no errors going `String` -> `Vdlm2Message` and `Vdlm2Message` -> `String`.
     #[test]
-    fn test_vdlm2_parsing() -> Result<(), Box<dyn std::error::Error>> {
-        let load_vdlm_messages: Result<Vec<String>, Box<dyn std::error::Error>> =
+    fn test_vdlm2_parsing() -> Result<(), Box<dyn Error>> {
+        let load_vdlm_messages: Result<Vec<String>, Box<dyn Error>> =
             combine_files_of_message_type(MessageType::Vdlm2);
         match load_vdlm_messages {
             Err(load_failed) => Err(load_failed),
@@ -570,9 +783,9 @@ mod tests {
     /// Marked as `#[ignore]` so it can be run separately as required.
     #[test]
     #[ignore]
-    fn show_vdlm2_ingest() -> Result<(), Box<dyn std::error::Error>> {
+    fn show_vdlm2_ingest() -> Result<(), Box<dyn Error>> {
         println!("Showing vdlm2 ingest errors");
-        let load_vdlm2_files: Result<Vec<TestFile>, Box<dyn std::error::Error>> =
+        let load_vdlm2_files: Result<Vec<TestFile>, Box<dyn Error>> =
             load_files_of_message_type(MessageType::Vdlm2);
         match load_vdlm2_files {
             Err(load_failed) => Err(load_failed),
@@ -591,8 +804,8 @@ mod tests {
     /// Then it will cycle them into `Vec<AcarsMessage>` and back to `String`.
     /// It validates that there are no errors going `String` -> `AcarsMessage` and `AcarsMessage` -> `String`.
     #[test]
-    fn test_acars_parsing() -> Result<(), Box<dyn std::error::Error>> {
-        let load_acars_messages: Result<Vec<String>, Box<dyn std::error::Error>> =
+    fn test_acars_parsing() -> Result<(), Box<dyn Error>> {
+        let load_acars_messages: Result<Vec<String>, Box<dyn Error>> =
             combine_files_of_message_type(MessageType::Acars);
         match load_acars_messages {
             Err(load_failed) => Err(load_failed),
@@ -627,7 +840,7 @@ mod tests {
     /// Marked as `#[ignore]` so it can be run separately as required.
     #[test]
     #[ignore]
-    fn show_acars_ingest() -> Result<(), Box<dyn std::error::Error>> {
+    fn show_acars_ingest() -> Result<(), Box<dyn Error>> {
         println!("Showing acars ingest errors");
         let load_acars_files: Result<Vec<TestFile>, Box<dyn std::error::Error>> =
             load_files_of_message_type(MessageType::Acars);
@@ -650,8 +863,8 @@ mod tests {
     /// It then combines two files containing known bad data into a single `Vec<String>` and randomises the ordering.
     /// It validates that it gets errors that it is expecting and the correct number of errors.
     #[test]
-    fn test_determining_message() -> Result<(), Box<dyn std::error::Error>> {
-        let load_all_messages: Result<Vec<String>, Box<dyn std::error::Error>> =
+    fn test_determining_message() -> Result<(), Box<dyn Error>> {
+        let load_all_messages: Result<Vec<String>, Box<dyn Error>> =
             combine_files_of_message_type(MessageType::All);
         match load_all_messages {
             Err(load_error) => Err(load_error),
@@ -687,105 +900,7 @@ mod tests {
     
     #[test]
     #[ignore]
-    fn test_serialisation_deserialisation_speed() -> Result<(), Box<dyn std::error::Error>> {
-        println!("Starting a speed test of 100 rounds");
-        let load_all_messages: Result<Vec<String>, Box<dyn std::error::Error>> =
-            combine_files_of_message_type(MessageType::All);
-        match load_all_messages {
-            Err(load_error) => Err(load_error),
-            Ok(mut all_messages) => {
-                println!("Loaded data successfully");
-                let mut rng: ThreadRng = thread_rng();
-                let mut successfully_decoded_items: Vec<AcarsVdlm2Message> = Vec::new();
-                let mut all_deserialisation_run_durations: Vec<Duration> = Vec::new();
-                let mut all_serialisation_run_durations: Vec<Duration> = Vec::new();
-                let mut additive_serialisation_run_durations: Vec<Duration> = Vec::new();
-                let total_run_start: DateTime<Utc> = Utc::now();
-                for run in 0..100 {
-                    println!("Run {} =>", run);
-                    all_messages.shuffle(&mut rng);
-                    let mut run_deserialisation_successful_items: Vec<AcarsVdlm2Message> = Vec::new();
-                    let deserialisation_run_start: DateTime<Utc> = Utc::now();
-                    for entry in &all_messages {
-                        let parsed_message: MessageResult<AcarsVdlm2Message> = entry.decode_message();
-                        match parsed_message {
-                            Err(_) => {}
-                            Ok(decoded_message) => {
-                                successfully_decoded_items.push(decoded_message.clone());
-                                run_deserialisation_successful_items.push(decoded_message.clone());
-                            }
-                        }
-                    }
-                    let deserialisation_run_stop: DateTime<Utc> = Utc::now();
-                    let deserialisation_run_duration: Duration = deserialisation_run_stop - deserialisation_run_start;
-                    println!("Run added {} successful items", run_deserialisation_successful_items.len());
-                    println!("Deserialisation duration: {}ms", deserialisation_run_duration.num_milliseconds());
-                    all_serialisation_run_durations.push(deserialisation_run_duration);
-                    all_deserialisation_run_durations.push(deserialisation_run_duration);
-                    successfully_decoded_items.shuffle(&mut rng);
-                    run_deserialisation_successful_items.shuffle(&mut rng);
-                    let serialisation_run_start: DateTime<Utc> = Utc::now();
-                    for message in &run_deserialisation_successful_items {
-                        test_enum_serialisation(message);
-                    }
-                    let serialisation_run_stop: DateTime<Utc> = Utc::now();
-                    let serialisation_run_duration: Duration = serialisation_run_stop - serialisation_run_start;
-                    println!("Run only serialisation duration: {}ms", serialisation_run_duration.num_milliseconds());
-                    println!("Decoded items now contains {} items", successfully_decoded_items.len());
-                    let additive_serialisation_run_start: DateTime<Utc> = Utc::now();
-                    for message in &successfully_decoded_items {
-                        test_enum_serialisation(message);
-                    }
-                    let additive_serialisation_run_stop: DateTime<Utc> = Utc::now();
-                    let additive_serialisation_run_duration: Duration = additive_serialisation_run_stop - additive_serialisation_run_start;
-                    println!("Cumulative Run Serialisation duration: {}ms", additive_serialisation_run_duration.num_milliseconds());
-                    additive_serialisation_run_durations.push(additive_serialisation_run_duration);
-                }
-                successfully_decoded_items.shuffle(&mut rng);
-                let final_cumulative_serialisation_run_start: DateTime<Utc> = Utc::now();
-                for message in &successfully_decoded_items {
-                    test_enum_serialisation(message);
-                }
-                let final_cumulative_serialisation_run_stop: DateTime<Utc> = Utc::now();
-                let final_cumulative_serialisation_run_duration: Duration = final_cumulative_serialisation_run_stop - final_cumulative_serialisation_run_start;
-                let total_run_stop: DateTime<Utc> = Utc::now();
-                let total_run_duration: Duration = total_run_stop - total_run_start;
-                additive_serialisation_run_durations.sort_by(|a, b | a.num_milliseconds().cmp(&b.num_milliseconds()));
-                let mut additive_serialisation_run_gaps: Vec<i64> = additive_serialisation_run_durations.windows(2).map(|w| w[1].num_milliseconds() - w[0].num_milliseconds()).collect::<Vec<i64>>();
-                additive_serialisation_run_gaps.sort_by(|a, b| a.cmp(&b));
-                let shortest_additive_serialisation_run_gaps: Option<&i64> = additive_serialisation_run_gaps.first();
-                let longest_additive_serialisation_run_gaps: Option<&i64> = additive_serialisation_run_gaps.last();
-                let middle_additive_serialisation_run_gaps: usize = additive_serialisation_run_gaps.len() / 2;
-                let average_additive_serialisation_run_gaps: i64 = additive_serialisation_run_gaps[middle_additive_serialisation_run_gaps];
-                all_deserialisation_run_durations.sort_by(|a, b | a.num_milliseconds().cmp(&b.num_milliseconds()));
-                let shortest_deserialisation_run: Option<&Duration> = all_deserialisation_run_durations.first();
-                let longest_deserialisation_run: Option<&Duration> = all_deserialisation_run_durations.last();
-                let middle_deserialisation_run: usize = all_deserialisation_run_durations.len() / 2;
-                let average_deserialisation_run: Duration = all_deserialisation_run_durations[middle_deserialisation_run];
-                all_serialisation_run_durations.sort_by(|a, b| a.num_milliseconds().cmp(&b.num_milliseconds()));
-                let shortest_serialisation_run: Option<&Duration> = all_serialisation_run_durations.first();
-                let longest_serialisation_run: Option<&Duration> = all_serialisation_run_durations.last();
-                let middle_serialisation_run: usize = all_serialisation_run_durations.len() / 2;
-                let average_serialisation_run: Duration = all_serialisation_run_durations[middle_serialisation_run];
-                println!("Speed test completed!");
-                println!("Total Serialisation runs: {}", additive_serialisation_run_durations.len());
-                if let (Some(shortest_run), Some(longest_run)) = (shortest_serialisation_run, longest_serialisation_run) {
-                    println!("Serialisation run stats:\nShortest: {}ms\nLongest: {}ms\nAverage: {}ms",
-                             shortest_run.num_milliseconds(), longest_run.num_milliseconds(), average_serialisation_run.num_milliseconds());
-                }
-                println!("Total Serialisation runs: {}", all_deserialisation_run_durations.len());
-                if let (Some(shortest_run), Some(longest_run)) = (shortest_deserialisation_run, longest_deserialisation_run) {
-                    println!("Deserialisation run stats:\nShortest: {}ms\nLongest: {}ms\nAverage: {}ms",
-                             shortest_run.num_milliseconds(), longest_run.num_milliseconds(), average_deserialisation_run.num_milliseconds());
-                }
-                if let (Some(shortest_run), Some(longest_run)) = (shortest_additive_serialisation_run_gaps, longest_additive_serialisation_run_gaps) {
-                    println!("Additive Serialisation run stats:\nShortest gap: {}ms\nLongest gap: {}ms\nAverage: {}ms",
-                             shortest_run, longest_run, average_additive_serialisation_run_gaps);
-                }
-                println!("Last Deserialisation of {} items completed in: {}ms", successfully_decoded_items.len(), final_cumulative_serialisation_run_duration.num_milliseconds());
-                println!("Total run completed in: {}ms", total_run_duration.num_milliseconds());
-                Ok(())
-            }
-        }
+    fn test_serialisation_deserialisation_speed() -> Result<(), Box<dyn Error>> {
+        1000.speed_test()
     }
 }
