@@ -36,12 +36,32 @@ impl Vdlm2Message {
     pub fn to_string(&self) -> MessageResult<String> {
         serde_json::to_string(self)
     }
+    
+    /// Converts `Vdlm2Message` to `String` and appends a `\n` to the end.
+    pub fn to_string_newline(&self) -> MessageResult<String> {
+        let data = serde_json::to_string(self);
+        match data {
+            Err(to_string_error) => Err(to_string_error),
+            Ok(string) => Ok(format!("{}\n", string))
+        }
+    }
 
     /// Converts `Vdlm2Message` to a `String` encoded as bytes.
     ///
-    /// The output is stored returned as a `Vec<u8>`.
+    /// The output is returned as a `Vec<u8>`.
     pub fn to_bytes(&self) -> MessageResult<Vec<u8>> {
         let string_conversion: MessageResult<String> = self.to_string();
+        match string_conversion {
+            Err(conversion_failed) => Err(conversion_failed),
+            Ok(string) => Ok(string.into_bytes())
+        }
+    }
+    
+    /// Converts `Vdlm2Message` to a `String` terminated with a `\n` and encoded as bytes.
+    ///
+    /// The output is returned as a `Vec<u8>`.
+    pub fn to_bytes_newline(&self) -> MessageResult<Vec<u8>> {
+        let string_conversion: MessageResult<String> = self.to_string_newline();
         match string_conversion {
             Err(conversion_failed) => Err(conversion_failed),
             Ok(string) => Ok(string.into_bytes())

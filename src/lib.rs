@@ -44,15 +44,35 @@ impl AcarsVdlm2Message {
     pub fn to_string(&self) -> MessageResult<String> {
         serde_json::to_string(self)
     }
+    
+    /// Converts `AcarsVdlm2Message` to `String` and appends a `\n` to the end.
+    pub fn to_string_newline(&self) -> MessageResult<String> {
+        let data = serde_json::to_string(self);
+        match data {
+            Err(to_string_error) => Err(to_string_error),
+            Ok(string) => Ok(format!("{}\n", string))
+        }
+    }
 
     /// Converts `AcarsVdlm2Message` to a `String` encoded as bytes.
     ///
-    /// The output is stored returned as a `Vec<u8>`.
+    /// The output is returned as a `Vec<u8>`.
     pub fn to_bytes(&self) -> MessageResult<Vec<u8>> {
         let string_conversion: MessageResult<String> = self.to_string();
         match string_conversion {
             Err(conversion_failed) => Err(conversion_failed),
             Ok(string) => Ok(string.into_bytes()),
+        }
+    }
+    
+    /// Converts `AcarsVdlm2Message` to a `String` terminated with a `\n` and encoded as bytes.
+    ///
+    /// The output is returned as a `Vec<u8>`.
+    pub fn to_bytes_newline(&self) -> MessageResult<Vec<u8>> {
+        let string_conversion: MessageResult<String> = self.to_string_newline();
+        match string_conversion {
+            Err(conversion_failed) => Err(conversion_failed),
+            Ok(string) => Ok(string.into_bytes())
         }
     }
 
@@ -114,6 +134,7 @@ impl AcarsVdlm2Message {
         }
     }
 
+    /// Retrieves the time information from the message.
     pub fn get_time(&self) -> Option<f64> {
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
@@ -123,6 +144,7 @@ impl AcarsVdlm2Message {
         }
     }
     
+    /// Clears the `freq_skew` field from a `Vdlm2Message`.
     pub fn clear_freq_skew(&mut self) {
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_freq_skew(),
@@ -130,6 +152,7 @@ impl AcarsVdlm2Message {
         }
     }
     
+    /// Clears the `hdr_bits_fixed` field from a `Vdlm2Message`.
     pub fn clear_hdr_bits_fixed(&mut self) {
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_hdr_bits_fixed(),
@@ -137,6 +160,7 @@ impl AcarsVdlm2Message {
         }
     }
     
+    /// Clears the `noise_level` field from a `Vdlm2Message`.
     pub fn clear_noise_level(&mut self) {
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_noise_level(),
@@ -144,6 +168,7 @@ impl AcarsVdlm2Message {
         }
     }
     
+    /// Clears the `octets_corrected_by_fec` field from a `Vdlm2Message`.
     pub fn clear_octets_corrected_by_fec(&mut self) {
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_octets_corrected_by_fec(),
@@ -151,6 +176,7 @@ impl AcarsVdlm2Message {
         }
     }
     
+    /// Clears the `sig_level` field from a `Vdlm2Message`.
     pub fn clear_sig_level(&mut self) {
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_sig_level(),
@@ -158,6 +184,7 @@ impl AcarsVdlm2Message {
         }
     }
     
+    /// Clears the `channel` field from a `AcarsMessage`.
     pub fn clear_channel(&mut self) {
         match self {
             AcarsVdlm2Message::Vdlm2Message(_) => {}
@@ -165,6 +192,7 @@ impl AcarsVdlm2Message {
         }
     }
     
+    /// Clears the `error` field from a `AcarsMessage`.
     pub fn clear_error(&mut self) {
         match self {
             AcarsVdlm2Message::Vdlm2Message(_) => {}
@@ -172,6 +200,7 @@ impl AcarsVdlm2Message {
         }
     }
     
+    /// Clears the `level` field from a `AcarsMessage`.
     pub fn clear_level(&mut self) {
         match self {
             AcarsVdlm2Message::Vdlm2Message(_) => {}
@@ -585,6 +614,25 @@ mod tests {
         );
     }
     
+    trait ContentDuplicator {
+        fn duplicate_contents(&self, rounds: &i32) -> Self;
+    }
+    
+    impl ContentDuplicator for Vec<String> {
+        fn duplicate_contents(&self, rounds: &i32) -> Self {
+            let mut duplicated_contents: Vec<String> = Vec::new();
+            let mut data: Vec<String> = self.to_vec();
+            let mut rng: ThreadRng = thread_rng();
+            for _ in 0..*rounds {
+                data.shuffle(&mut rng);
+                for entry in &data {
+                    duplicated_contents.push(entry.to_string());
+                }
+            }
+            duplicated_contents
+        }
+    }
+    
     /// Trait for performing speed tests.
     trait SpeedTest {
         fn speed_test(&self) -> Result<(), Box<dyn Error>>;
@@ -901,6 +949,6 @@ mod tests {
     #[test]
     #[ignore]
     fn test_serialisation_deserialisation_speed() -> Result<(), Box<dyn Error>> {
-        1000.speed_test()
+        100.speed_test()
     }
 }
