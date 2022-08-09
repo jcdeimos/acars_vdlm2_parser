@@ -40,7 +40,7 @@ impl SpeedTest for i64 {
                 let mut run_durations: RunDurations = RunDurations::new();
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
                 for run in 0..*self {
-                    println!("Run {}/{} =>", run, &self);
+                    println!("Run {}/{} =>", run + 1, &self);
                     let mut test_run: TestRun = TestRun::new(&run);
                     all_messages.shuffle(&mut rng);
                     let mut run_deserialisation_successful_items: Vec<AcarsVdlm2Message> = Vec::new();

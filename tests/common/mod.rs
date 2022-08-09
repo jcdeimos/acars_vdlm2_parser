@@ -204,6 +204,7 @@ impl RunDurations {
         match test_type {
             SpeedTestType::IteratingRounds => {
                 println!("Completed test type {}", test_type);
+                println!("Ran for {} rounds", self.test_runs.len());
                 self.test_runs.get_run_stats_ms(StatType::AllSer).output_speed_test_ranges("Serialisation");
                 self.test_runs.get_run_stats_ms(StatType::AllDeser).output_speed_test_ranges("Deserialisation");
                 self.test_runs.get_run_stats_ms(StatType::AddSer).output_speed_test_gaps("Cumulative Run Serialisation");
