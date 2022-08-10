@@ -7,6 +7,7 @@ use std::io::{BufRead, BufReader};
 use std::path::Path;
 use chrono::{DateTime, Duration, Utc};
 use glob::{glob, GlobResult, Paths, PatternError};
+use prettytable::{row, Table, cell};
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -14,7 +15,6 @@ use serde_json::Value;
 use acars_vdlm2_parser::{AcarsVdlm2Message, DecodeMessage, MessageResult};
 use acars_vdlm2_parser::acars::{AcarsMessage, NewAcarsMessage};
 use acars_vdlm2_parser::vdlm2::{NewVdlm2Message, Vdlm2Message};
-use crate::SpeedTestDisplayRanges;
 
 /// Enum for indicating test data type.
 pub(crate) enum MessageType {
@@ -90,7 +90,7 @@ impl Stopwatch {
     }
 }
 
-#[allow(dead_code)]
+// #[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub(crate) struct RunDurations {
     pub(crate) run_processed_items: usize,
@@ -146,7 +146,7 @@ impl TestRun {
 
 
 
-#[allow(dead_code)]
+// #[allow(dead_code)]
 impl RunDurations {
     pub(crate) fn new() -> Self {
         Self {
@@ -179,70 +179,95 @@ impl RunDurations {
             }
         }
     }
-    pub(crate) fn display_large_queue_deser(&self) {
-        println!("Deserialisation of {} items completed in: {}ms ({}ns)",
-                 self.run_processed_items, self.large_queue_deser_ms, self.large_queue_deser_ns);
-    }
-    pub(crate) fn display_large_queue_ser(&self) {
-        println!("Serialisation of {} items completed in: {}ms ({}ns)",
-                 self.run_processed_items, self.large_queue_ser_ms, self.large_queue_ser_ns);
-    }
-    pub(crate) fn display_run_duration(&self) {
-        match (self.total_run_ms.eq(&0), self.total_run_ns.eq(&0)) {
-            (false, true) => println!("Total run duration: {}ms", self.total_run_ms),
-            (true, false) => println!("Total run duration: {}ns", self.total_run_ns),
-            (false, false) => println!("Total run duration: {}ms ({}ns)", self.total_run_ms, self.total_run_ns),
-            (true, true) => println!("Unknown total run duration")
-        }
-    }
-    pub(crate) fn render_durations(&mut self, test_type: SpeedTestType) {
-        match test_type {
-            SpeedTestType::IteratingRoundsLibrary => {
-                println!("Completed test type {}", test_type);
-                println!("Ran for {} rounds", self.test_runs.len());
-                self.test_runs.get_run_stats_ms(StatType::AllSer).output_speed_test_ranges("Serialisation");
-                self.test_runs.get_run_stats_ms(StatType::AllDeser).output_speed_test_ranges("Deserialisation");
-                println!("Final cumulative Deserialisation of {} items completed in: {}ms ({}ns)",
-                         self.run_processed_items, self.large_queue_ser_ms, self.large_queue_ser_ns);
-                self.display_run_duration();
-            }
-            SpeedTestType::LargeQueueLibrary => {
-                self.display_large_queue_deser();
-                self.display_large_queue_ser();
-                self.display_run_duration();
-            }
-            SpeedTestType::IteratingRoundsValue => {
-                println!("Completed test type {}", test_type);
-                println!("Ran for {} rounds", self.test_runs.len());
-                self.test_runs.get_run_stats_ms(StatType::AllSer).output_speed_test_ranges("Serialisation");
-                self.test_runs.get_run_stats_ms(StatType::AllDeser).output_speed_test_ranges("Deserialisation");
-                println!("Final cumulative Deserialisation of {} items completed in: {}ms ({}ns)",
-                         self.run_processed_items, self.large_queue_ser_ms, self.large_queue_ser_ns);
-                self.display_run_duration();
-            }
-            SpeedTestType::LargeQueueValue => {
-                println!("Completed test type {}", test_type);
-                println!("Ran for {} rounds", self.test_runs.len());
-                self.test_runs.get_run_stats_ms(StatType::AllSer).output_speed_test_ranges("Serialisation");
-                self.test_runs.get_run_stats_ms(StatType::AllDeser).output_speed_test_ranges("Deserialisation");
-                println!("Final cumulative Deserialisation of {} items completed in: {}ms ({}ns)",
-                         self.run_processed_items, self.large_queue_ser_ms, self.large_queue_ser_ns);
-                self.display_run_duration();
-            }
-        }
-    }
 }
 
-pub(crate) trait DisplaySpeedTestResults {
-    fn display_results(self, test_type: SpeedTestType);
+pub(crate) struct SpeedTestComparisons {
+    pub(crate) test_one_type: SpeedTestType,
+    pub(crate) test_one_results: RunDurations,
+    pub(crate) test_two_type: SpeedTestType,
+    pub(crate) test_two_results: RunDurations
 }
 
-impl DisplaySpeedTestResults for Result<RunDurations, Box<dyn Error>> {
-    fn display_results(self, test_type: SpeedTestType) {
-        match self {
-            Err(test_error) => println!("Test error: {}", test_error),
-            Ok(mut durations) => durations.render_durations(test_type)
+impl SpeedTestComparisons {
+    pub(crate) fn compare_rounds(self) {
+        let mut comparison_table: Table = Table::new();
+        let mut test_one: RunDurations = self.test_one_results;
+        let mut test_two: RunDurations = self.test_two_results;
+        let test_one_ser: SpeedTestDurations = test_one.test_runs.get_run_stats_ms(StatType::AllSer);
+        let test_one_deser: SpeedTestDurations = test_one.test_runs.get_run_stats_ms(StatType::AllDeser);
+        let test_two_ser: SpeedTestDurations = test_two.test_runs.get_run_stats_ms(StatType::AllSer);
+        let test_two_deser: SpeedTestDurations = test_two.test_runs.get_run_stats_ms(StatType::AllDeser);
+        comparison_table.add_row(row!["Result", self.test_one_type, self.test_two_type]);
+        comparison_table.add_row(row!["Rounds", test_one.total_test_runs, test_two.total_test_runs]);
+        comparison_table.add_row(row!["Total processed items", test_one.run_processed_items, test_two.run_processed_items]);
+        if let (Some(test_one), Some(test_two)) = (test_one_ser.shortest_duration, test_two_ser.shortest_duration) {
+            comparison_table.add_row(row![
+                    "Shortest Serialisation",
+                    format!("{}ms, Run {}", test_one, test_one_ser.shortest_run_number),
+                    format!("{}ms, Run {}",test_two, test_two_ser.shortest_run_number)
+                ]);
         }
+        if let (Some(test_one), Some(test_two)) = (test_one_ser.longest_duration, test_two_ser.longest_duration) {
+            comparison_table.add_row(row![
+                "Longest Serialisation",
+                format!("{}ms, Run {}", test_one, test_one_ser.longest_run_number),
+                format!("{}ms, Run {}",test_two, test_two_ser.longest_run_number)
+                ]);
+        }
+        comparison_table.add_row(row![
+                "Average Serialisation",
+                format!("{}ms", test_one_ser.average_duration),
+                format!("{}ms",test_two_ser.average_duration)
+                ]);
+        if let (Some(test_one), Some(test_two)) = (test_one_deser.shortest_duration, test_two_deser.shortest_duration) {
+            comparison_table.add_row(row![
+                "Shortest Deserialisation",
+                format!("{}ms, Run {}", test_one, test_one_deser.shortest_run_number),
+                format!("{}ms, Run {}",test_two, test_two_deser.shortest_run_number)
+                ]);
+        }
+        if let (Some(test_one), Some(test_two)) = (test_one_deser.longest_duration, test_two_deser.longest_duration) {
+            comparison_table.add_row(row![
+                "Longest Deserialisation",
+                format!("{}ms, Run {}", test_one, test_one_deser.longest_run_number),
+                format!("{}ms, Run {}",test_two, test_two_deser.longest_run_number)
+                ]);
+        }
+        comparison_table.add_row(
+            row![
+                "Average Deserialisation",
+                format!("{}ms", test_one_deser.average_duration),
+                format!("{}ms", test_two_deser.average_duration)
+                ]);
+        comparison_table.add_row(row![
+            "Total Runtime",
+            format!("{}ms", test_one.total_run_ms),
+            format!("{}ms", test_two.total_run_ms)
+        ]);
+        comparison_table.printstd();
+    }
+    pub(crate) fn compare_large_queue(self) {
+        let mut comparison_table: Table = Table::new();
+        let test_one: RunDurations = self.test_one_results;
+        let test_two: RunDurations = self.test_two_results;
+        comparison_table.add_row(row!["Result", self.test_one_type, self.test_two_type]);
+        comparison_table.add_row(row!["Processed items", test_one.run_processed_items, test_two.run_processed_items]);
+        comparison_table.add_row(row![
+            "Serialisation",
+            format!("{}ms", test_one.large_queue_ser_ms),
+            format!("{}ms", test_two.large_queue_ser_ms)
+        ]);
+        comparison_table.add_row(row![
+            "Deserialisation",
+            format!("{}ms",test_one.large_queue_deser_ms),
+            format!("{}ms",test_two.large_queue_deser_ms)
+        ]);
+        comparison_table.add_row(row![
+            "Total Runtime",
+            format!("{}ms", test_one.total_run_ms),
+            format!("{}ms", test_two.total_run_ms)
+        ]);
+        comparison_table.printstd();
     }
 }
 

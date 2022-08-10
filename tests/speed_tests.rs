@@ -6,40 +6,20 @@ use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
 use rand::thread_rng;
 use acars_vdlm2_parser::{AcarsVdlm2Message, DecodeMessage, MessageResult};
-use crate::common::{combine_files_of_message_type, ContentDuplicator, DisplaySpeedTestResults, StopwatchType, MessageType, RunDurations, SpeedTestDurations, SpeedTestType, Stopwatch, test_enum_serialisation, TestRun, test_value_serialisation};
+use crate::common::{combine_files_of_message_type, ContentDuplicator, StopwatchType, MessageType, RunDurations, SpeedTestType, Stopwatch, test_enum_serialisation, TestRun, test_value_serialisation, SpeedTestComparisons};
 use rayon::prelude::*;
 use serde_json::Value;
 
 #[test]
 #[ignore]
 fn test_serialisation_deserialisation_speed() {
-    let rounds_100_library: Result<RunDurations, Box<dyn Error>> = 100.iterating_rounds_library();
-    let rounds_500_library: Result<RunDurations, Box<dyn Error>> = 500.iterating_rounds_library();
-    let large_1000_library: Result<RunDurations, Box<dyn Error>> = 1000.large_queue_library();
-    let large_5000_library: Result<RunDurations, Box<dyn Error>> = 5000.large_queue_library();
-    let large_10_000_library: Result<RunDurations, Box<dyn Error>> = 10_000.large_queue_library();
-    let rounds_library: Vec<Result<RunDurations, Box<dyn Error>>> = vec![rounds_100_library, rounds_500_library];
-    let large_queue_library: Vec<Result<RunDurations, Box<dyn Error>>> = vec![large_1000_library, large_5000_library, large_10_000_library];
-    let rounds_100_value: Result<RunDurations, Box<dyn Error>> = 100.iterating_rounds_library();
-    let rounds_500_value: Result<RunDurations, Box<dyn Error>> = 500.iterating_rounds_library();
-    let large_1000_value: Result<RunDurations, Box<dyn Error>> = 1000.large_queue_library();
-    let large_5000_value: Result<RunDurations, Box<dyn Error>> = 5000.large_queue_library();
-    let large_10_000_value: Result<RunDurations, Box<dyn Error>> = 10_000.large_queue_library();
-    let rounds_value: Vec<Result<RunDurations, Box<dyn Error>>> = vec![rounds_100_value, rounds_500_value];
-    let large_queue_value: Vec<Result<RunDurations, Box<dyn Error>>> = vec![large_1000_value, large_5000_value, large_10_000_value];
-    for round in rounds_library {
-        round.display_results(SpeedTestType::IteratingRoundsLibrary);
-    }
-    for queue in large_queue_library {
-        queue.display_results(SpeedTestType::LargeQueueLibrary);
-    }
-    for round in rounds_value {
-        round.display_results(SpeedTestType::IteratingRoundsValue);
-    }
-    for queue in large_queue_value {
-        queue.display_results(SpeedTestType::LargeQueueValue);
-    }
-    
+    println!();
+    round_results(100.iterating_rounds_library(), 100.iterating_rounds_value());
+    round_results(500.iterating_rounds_library(), 500.iterating_rounds_value());
+    round_results(1_000.iterating_rounds_library(), 1_000.iterating_rounds_value());
+    large_queue_results(1_000.large_queue_library(), 1_000.large_queue_value());
+    large_queue_results(5_000.large_queue_library(), 5_000.large_queue_value());
+    large_queue_results(10_000.large_queue_library(), 10_000.large_queue_value());
 }
 
 /// Trait for performing speed tests.
@@ -62,44 +42,47 @@ impl SpeedTest for i64 {
             Err(load_error) => Err(load_error),
             Ok(all_messages) => {
                 println!("Loaded data successfully");
-                let run_durations: Arc<Mutex<RunDurations>> = Arc::new(Mutex::new(RunDurations::new()));
+                let mut run_durations: RunDurations = RunDurations::new();
+                let mut rng: ThreadRng = thread_rng();
+                run_durations.total_test_runs = *self;
+                let mut processed_items: usize = usize::default();
+                println!("Running tests");
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
-                (0..*self).into_par_iter().for_each(|run| {
+                for run in 0..*self {
                     let run_count: i64 = run + 1;
                     let mut test_run: TestRun = TestRun::new(&run_count);
-                    println!("Running test with a factor of {}.", run_count);
                     let mut run_messages: Vec<String> = all_messages.to_vec().duplicate_contents(&run_count);
                     test_run.run_items = run_messages.len();
-                    let mut rng: ThreadRng = thread_rng();
+                    processed_items = processed_items + run_messages.len();
                     run_messages.shuffle(&mut rng);
-                    let mut run_deserialisation_successful_items: Vec<AcarsVdlm2Message> = Vec::new();
+                    let run_deserialisation_successful_items: Arc<Mutex<Vec<AcarsVdlm2Message>>> = Arc::new(Mutex::new(Vec::new()));
                     let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::AllDeser);
-                    for entry in &run_messages {
+                    run_messages.par_iter().for_each(|entry| {
                         let parsed_message: MessageResult<AcarsVdlm2Message> = entry.decode_message();
                         match parsed_message {
                             Err(_) => {}
                             Ok(decoded_message) => {
-                                run_deserialisation_successful_items.push(decoded_message.clone());
+                                run_deserialisation_successful_items.lock().unwrap().push(decoded_message.clone());
                             }
                         }
-                    }
+                    });
                     deserialisation_run_stopwatch.stop();
-                    println!("Run contained {}/{} successful items", run_deserialisation_successful_items.len(), run_messages.len());
+                    let mut deserialisation_run: Vec<AcarsVdlm2Message> = run_deserialisation_successful_items.lock().unwrap().to_vec();
                     test_run.update_run_durations(&deserialisation_run_stopwatch);
-                    run_deserialisation_successful_items.shuffle(&mut rng);
+                    deserialisation_run.shuffle(&mut rng);
                     let mut serialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::AllSer);
-                    for message in &run_deserialisation_successful_items {
+                    deserialisation_run.par_iter().for_each(|message| {
                         test_enum_serialisation(message);
-                    }
+                    });
                     serialisation_run_stopwatch.stop();
                     test_run.update_run_durations(&serialisation_run_stopwatch);
-                    run_durations.lock().unwrap().test_runs.push(test_run);
-                });
-                let mut run_lock: MutexGuard<RunDurations> = run_durations.lock().unwrap();
+                    run_durations.test_runs.push(test_run);
+                }
                 total_run_stopwatch.stop();
-                run_lock.update_run_durations(&total_run_stopwatch);
+                run_durations.update_run_durations(&total_run_stopwatch);
+                run_durations.run_processed_items = processed_items;
                 println!("Speed test completed, storing results.");
-                Ok(run_lock.clone())
+                Ok(run_durations)
             }
         }
     }
@@ -162,44 +145,47 @@ impl SpeedTest for i64 {
             Err(load_error) => Err(load_error),
             Ok(all_messages) => {
                 println!("Loaded data successfully");
-                let run_durations: Arc<Mutex<RunDurations>> = Arc::new(Mutex::new(RunDurations::new()));
+                let mut run_durations: RunDurations = RunDurations::new();
+                let mut rng: ThreadRng = thread_rng();
+                let mut processed_items: usize = usize::default();
+                println!("Running tests");
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
-                (0..*self).into_par_iter().for_each(|run| {
+                run_durations.total_test_runs = *self;
+                for run in 0..*self {
                     let run_count: i64 = run + 1;
                     let mut test_run: TestRun = TestRun::new(&run_count);
-                    println!("Running test with a factor of {}.", run_count);
                     let mut run_messages: Vec<String> = all_messages.to_vec().duplicate_contents(&run_count);
+                    processed_items = processed_items + run_messages.len();
                     test_run.run_items = run_messages.len();
-                    let mut rng: ThreadRng = thread_rng();
                     run_messages.shuffle(&mut rng);
-                    let mut run_deserialisation_successful_items: Vec<Value> = Vec::new();
+                    let run_deserialisation_successful_items: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
                     let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::AllDeser);
-                    for entry in &run_messages {
+                    run_messages.par_iter().for_each(|entry| {
                         let parsed_message: MessageResult<Value> = serde_json::from_str(&entry);
                         match parsed_message {
                             Err(_) => {}
                             Ok(decoded_message) => {
-                                run_deserialisation_successful_items.push(decoded_message.clone());
+                                run_deserialisation_successful_items.lock().unwrap().push(decoded_message.clone());
                             }
                         }
-                    }
+                    });
                     deserialisation_run_stopwatch.stop();
-                    println!("Run contained {}/{} successful items", run_deserialisation_successful_items.len(), run_messages.len());
+                    let mut deserialisation_run: Vec<Value> = run_deserialisation_successful_items.lock().unwrap().to_vec();
                     test_run.update_run_durations(&deserialisation_run_stopwatch);
-                    run_deserialisation_successful_items.shuffle(&mut rng);
+                    deserialisation_run.shuffle(&mut rng);
                     let mut serialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::AllSer);
-                    for message in &run_deserialisation_successful_items {
+                    deserialisation_run.par_iter().for_each(|message| {
                         test_value_serialisation(message);
-                    }
+                    });
                     serialisation_run_stopwatch.stop();
                     test_run.update_run_durations(&serialisation_run_stopwatch);
-                    run_durations.lock().unwrap().test_runs.push(test_run);
-                });
-                let mut run_lock: MutexGuard<RunDurations> = run_durations.lock().unwrap();
+                    run_durations.test_runs.push(test_run);
+                };
                 total_run_stopwatch.stop();
-                run_lock.update_run_durations(&total_run_stopwatch);
+                run_durations.update_run_durations(&total_run_stopwatch);
+                run_durations.run_processed_items = processed_items;
                 println!("Speed test completed, storing results.");
-                Ok(run_lock.clone())
+                Ok(run_durations)
             }
         }
     }
@@ -255,23 +241,34 @@ impl SpeedTest for i64 {
     }
 }
 
-trait SpeedTestDisplayRanges {
-    fn output_speed_test_ranges(&self, test: &str);
-    fn output_speed_test_gaps(&self, test: &str);
-}
-
-impl SpeedTestDisplayRanges for SpeedTestDurations {
-    fn output_speed_test_ranges(&self, test: &str) {
-        if let (Some(shortest_run), Some(longest_run)) = (self.shortest_duration, self.longest_duration) {
-            println!("{} run stats:\nShortest: {}ms (Run {})\nLongest: {}ms (Run {})\nAverage: {}ms",
-                     test, shortest_run, self.shortest_run_number, longest_run, self.longest_run_number, self.average_duration);
+fn round_results(library_result: Result<RunDurations, Box<dyn Error>>, value_result: Result<RunDurations, Box<dyn Error>>) {
+    match (library_result, value_result) {
+        (Err(library_error), _) => println!("Library test had an error: {}", library_error),
+        (_, Err(value_error)) => println!("Value test had an error: {}", value_error),
+        (Ok(library), Ok(value)) => {
+            let comparison: SpeedTestComparisons = SpeedTestComparisons {
+                test_one_type: SpeedTestType::IteratingRoundsLibrary,
+                test_one_results: library,
+                test_two_type: SpeedTestType::IteratingRoundsValue,
+                test_two_results: value
+            };
+            comparison.compare_rounds();
         }
     }
-    
-    fn output_speed_test_gaps(&self, test: &str) {
-        if let (Some(shortest_run), Some(longest_run)) = (self.shortest_duration, self.longest_duration) {
-            println!("{} run stats:\nShortest gap: {}ms\nLongest gap: {}ms\nAverage: {}ms",
-                     test, shortest_run, longest_run, self.average_duration);
+}
+
+fn large_queue_results(library_result: Result<RunDurations, Box<dyn Error>>, value_result: Result<RunDurations, Box<dyn Error>>) {
+    match (library_result, value_result) {
+        (Err(library_error), _) => println!("Library test had an error: {}", library_error),
+        (_, Err(value_error)) => println!("Value test had an error: {}", value_error),
+        (Ok(library), Ok(value)) => {
+            let comparison: SpeedTestComparisons = SpeedTestComparisons {
+                test_one_type: SpeedTestType::LargeQueueLibrary,
+                test_one_results: library,
+                test_two_type: SpeedTestType::LargeQueueValue,
+                test_two_results: value
+            };
+            comparison.compare_large_queue();
         }
     }
 }
