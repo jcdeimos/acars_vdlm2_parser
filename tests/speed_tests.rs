@@ -16,10 +16,10 @@ fn test_serialisation_deserialisation_speed() {
     println!();
     round_results(100.iterating_rounds_library(), 100.iterating_rounds_value());
     round_results(500.iterating_rounds_library(), 500.iterating_rounds_value());
-    round_results(1_000.iterating_rounds_library(), 1_000.iterating_rounds_value());
     large_queue_results(1_000.large_queue_library(), 1_000.large_queue_value());
     large_queue_results(5_000.large_queue_library(), 5_000.large_queue_value());
     large_queue_results(10_000.large_queue_library(), 10_000.large_queue_value());
+    large_queue_results(20_000.large_queue_library(), 20_000.large_queue_value());
 }
 
 /// Trait for performing speed tests.
