@@ -329,7 +329,7 @@ impl BuildSpeedTestDurations for Vec<TestRun> {
         let middle: usize = self.len() / 2;
         let duration = match stat_type {
             StatType::AllDeser => {
-                self.sort_by(|a, b| a.deser_ms.cmp(&b.deser_ms));
+                self.sort_by(|a, b| a.deser_ns.cmp(&b.deser_ns));
                 let first = self.first();
                 let last = self.last();
                 match (first, last) {
@@ -358,7 +358,7 @@ impl BuildSpeedTestDurations for Vec<TestRun> {
                 }
             }
             StatType::AllSer => {
-                self.sort_by(|a, b| a.ser_ms.cmp(&b.ser_ms));
+                self.sort_by(|a, b| a.ser_ns.cmp(&b.ser_ns));
                 let first = self.first();
                 let last = self.last();
                 match (first, last) {
@@ -776,7 +776,7 @@ fn test_acars_parsing() -> Result<(), Box<dyn Error>> {
 #[ignore]
 fn show_acars_ingest() -> Result<(), Box<dyn Error>> {
     println!("Showing acars ingest errors");
-    let load_acars_files: Result<Vec<TestFile>, Box<dyn std::error::Error>> =
+    let load_acars_files: Result<Vec<TestFile>, Box<dyn Error>> =
         load_files_of_message_type(MessageType::Acars);
     match load_acars_files {
         Err(load_failed) => Err(load_failed),

@@ -14,12 +14,20 @@ use serde_json::Value;
 #[ignore]
 fn test_serialisation_deserialisation_speed() {
     println!();
+    round_results(50.iterating_rounds_library(), 50.iterating_rounds_value());
     round_results(100.iterating_rounds_library(), 100.iterating_rounds_value());
+    round_results(250.iterating_rounds_library(), 250.iterating_rounds_value());
     round_results(500.iterating_rounds_library(), 500.iterating_rounds_value());
+    round_results(750.iterating_rounds_library(), 750.iterating_rounds_value());
     large_queue_results(1_000.large_queue_library(), 1_000.large_queue_value());
+    large_queue_results(2_500.large_queue_library(), 2_500.large_queue_value());
     large_queue_results(5_000.large_queue_library(), 5_000.large_queue_value());
+    large_queue_results(7_500.large_queue_library(), 7_500.large_queue_value());
     large_queue_results(10_000.large_queue_library(), 10_000.large_queue_value());
     large_queue_results(20_000.large_queue_library(), 20_000.large_queue_value());
+    large_queue_results(50_000.large_queue_library(), 50_000.large_queue_value());
+    large_queue_results(75_000.large_queue_library(), 75_000.large_queue_value());
+    large_queue_results(100_000.large_queue_library(), 100_000.large_queue_value());
 }
 
 /// Trait for performing speed tests.
@@ -30,9 +38,9 @@ pub(crate) trait SpeedTest {
     fn large_queue_value(&self) -> Result<RunDurations, Box<dyn Error>>;
 }
 
-/// `SpeedTest` implemented for `i32`
+/// `SpeedTest` implemented for `i64`
 ///
-/// Run x iterations, invoked as `int.speed_test()`
+/// Run x iterations, invoked as `int.iterating_rounds_library()`
 impl SpeedTest for i64 {
     fn iterating_rounds_library(&self) -> Result<RunDurations, Box<dyn Error>> {
         println!("Starting a speed test of {} rounds using the library", self);
@@ -97,15 +105,12 @@ impl SpeedTest for i64 {
                 let mut run_durations: RunDurations = RunDurations::new();
                 println!("Loaded data successfully");
                 let mut rng: ThreadRng = thread_rng();
-                println!("Increasing queue size by a factor of {}", self);
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
-                println!("Queue contains {} messages", test_message_queue.len());
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<AcarsVdlm2Message>>> = Arc::new(Mutex::new(Vec::new()));
+                println!("Running tests");
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
-                println!("Shuffling the queue");
                 test_message_queue.shuffle(&mut rng);
-                println!("Deserialising the queue");
                 let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueDeser);
                 test_message_queue.par_iter().for_each(|entry| {
                     let parsed_message: MessageResult<AcarsVdlm2Message> = entry.decode_message();
@@ -119,9 +124,7 @@ impl SpeedTest for i64 {
                 deserialisation_run_stopwatch.stop();
                 let mut successfully_decoded_items_lock: MutexGuard<Vec<AcarsVdlm2Message>> = successfully_decoded_items.lock().unwrap();
                 run_durations.update_run_durations(&deserialisation_run_stopwatch);
-                println!("Deserialisation completed, shuffling the successful results");
                 successfully_decoded_items_lock.shuffle(&mut rng);
-                println!("Serialising the queue");
                 let mut serialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueSer);
                 successfully_decoded_items_lock.par_iter().for_each(|message| {
                     test_enum_serialisation(message);
@@ -200,15 +203,12 @@ impl SpeedTest for i64 {
                 let mut run_durations: RunDurations = RunDurations::new();
                 println!("Loaded data successfully");
                 let mut rng: ThreadRng = thread_rng();
-                println!("Increasing queue size by a factor of {}", self);
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
-                println!("Queue contains {} messages", test_message_queue.len());
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
+                println!("Running tests");
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
-                println!("Shuffling the queue");
                 test_message_queue.shuffle(&mut rng);
-                println!("Deserialising the queue");
                 let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueDeser);
                 test_message_queue.par_iter().for_each(|entry| {
                     let parsed_message: MessageResult<Value> = serde_json::from_str(&entry);
@@ -222,9 +222,7 @@ impl SpeedTest for i64 {
                 deserialisation_run_stopwatch.stop();
                 let mut successfully_decoded_items_lock: MutexGuard<Vec<Value>> = successfully_decoded_items.lock().unwrap();
                 run_durations.update_run_durations(&deserialisation_run_stopwatch);
-                println!("Deserialisation completed, shuffling the successful results");
                 successfully_decoded_items_lock.shuffle(&mut rng);
-                println!("Serialising the queue");
                 let mut serialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueSer);
                 successfully_decoded_items_lock.par_iter().for_each(|message| {
                     test_value_serialisation(message);
