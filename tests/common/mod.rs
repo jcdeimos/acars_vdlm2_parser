@@ -24,15 +24,19 @@ pub(crate) enum MessageType {
 }
 
 pub(crate) enum SpeedTestType {
-    IteratingRounds,
-    LargeQueue
+    IteratingRoundsLibrary,
+    LargeQueueLibrary,
+    IteratingRoundsValue,
+    LargeQueueValue
 }
 
 impl fmt::Display for SpeedTestType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            SpeedTestType::IteratingRounds => write!(f, "Iterating Rounds"),
-            SpeedTestType::LargeQueue => write!(f, "Large Queue")
+            SpeedTestType::IteratingRoundsLibrary => write!(f, "Iterating Rounds Library"),
+            SpeedTestType::LargeQueueLibrary => write!(f, "Large Queue Library"),
+            SpeedTestType::IteratingRoundsValue => write!(f, "Iterating Rounds Value"),
+            SpeedTestType::LargeQueueValue => write!(f, "Large Queue Value")
         }
     }
 }
@@ -40,7 +44,6 @@ impl fmt::Display for SpeedTestType {
 pub(crate) enum StopwatchType {
     AllDeser,
     AllSer,
-    AddSer,
     LargeQueueSer,
     LargeQueueDeser,
     TotalRun
@@ -48,8 +51,7 @@ pub(crate) enum StopwatchType {
 
 pub(crate) enum StatType {
     AllDeser,
-    AllSer,
-    AddSer
+    AllSer
 }
 
 /// Struct for storing test information for the tests that just display error information.
@@ -106,24 +108,22 @@ pub(crate) struct RunDurations {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct TestRun {
     pub(crate) run_number: i64,
+    pub(crate) run_items: usize,
     pub(crate) deser_ms: i64,
     pub(crate) deser_ns: i64,
     pub(crate) ser_ms: i64,
-    pub(crate) ser_ns: i64,
-    pub(crate) add_ser_ms: i64,
-    pub(crate) add_ser_ns: i64
+    pub(crate) ser_ns: i64
 }
 
 impl TestRun {
     pub(crate) fn new(run_number: &i64) -> Self {
         Self {
             run_number: *run_number,
+            run_items: usize::default(),
             deser_ms: i64::default(),
             deser_ns: i64::default(),
             ser_ms: i64::default(),
-            ser_ns: i64::default(),
-            add_ser_ms: i64::default(),
-            add_ser_ns: i64::default()
+            ser_ns: i64::default()
         }
     }
     
@@ -136,10 +136,6 @@ impl TestRun {
             StopwatchType::AllSer => {
                 self.ser_ms = stopwatch.duration_ms;
                 self.ser_ns = stopwatch.duration_ms;
-            }
-            StopwatchType::AddSer => {
-                self.add_ser_ms = stopwatch.duration_ms;
-                self.add_ser_ns = stopwatch.duration_ms;
             }
             StopwatchType::LargeQueueSer => {}
             StopwatchType::LargeQueueDeser => {}
@@ -169,7 +165,6 @@ impl RunDurations {
         match stopwatch.stopwatch_type {
             StopwatchType::AllDeser => {}
             StopwatchType::AllSer => {}
-            StopwatchType::AddSer => {}
             StopwatchType::LargeQueueSer => {
                 self.large_queue_ser_ms = stopwatch.duration_ms;
                 self.large_queue_ser_ns = stopwatch.duration_ns;
@@ -202,19 +197,36 @@ impl RunDurations {
     }
     pub(crate) fn render_durations(&mut self, test_type: SpeedTestType) {
         match test_type {
-            SpeedTestType::IteratingRounds => {
+            SpeedTestType::IteratingRoundsLibrary => {
                 println!("Completed test type {}", test_type);
                 println!("Ran for {} rounds", self.test_runs.len());
                 self.test_runs.get_run_stats_ms(StatType::AllSer).output_speed_test_ranges("Serialisation");
                 self.test_runs.get_run_stats_ms(StatType::AllDeser).output_speed_test_ranges("Deserialisation");
-                self.test_runs.get_run_stats_ms(StatType::AddSer).output_speed_test_gaps("Cumulative Run Serialisation");
                 println!("Final cumulative Deserialisation of {} items completed in: {}ms ({}ns)",
                          self.run_processed_items, self.large_queue_ser_ms, self.large_queue_ser_ns);
                 self.display_run_duration();
             }
-            SpeedTestType::LargeQueue => {
+            SpeedTestType::LargeQueueLibrary => {
                 self.display_large_queue_deser();
                 self.display_large_queue_ser();
+                self.display_run_duration();
+            }
+            SpeedTestType::IteratingRoundsValue => {
+                println!("Completed test type {}", test_type);
+                println!("Ran for {} rounds", self.test_runs.len());
+                self.test_runs.get_run_stats_ms(StatType::AllSer).output_speed_test_ranges("Serialisation");
+                self.test_runs.get_run_stats_ms(StatType::AllDeser).output_speed_test_ranges("Deserialisation");
+                println!("Final cumulative Deserialisation of {} items completed in: {}ms ({}ns)",
+                         self.run_processed_items, self.large_queue_ser_ms, self.large_queue_ser_ns);
+                self.display_run_duration();
+            }
+            SpeedTestType::LargeQueueValue => {
+                println!("Completed test type {}", test_type);
+                println!("Ran for {} rounds", self.test_runs.len());
+                self.test_runs.get_run_stats_ms(StatType::AllSer).output_speed_test_ranges("Serialisation");
+                self.test_runs.get_run_stats_ms(StatType::AllDeser).output_speed_test_ranges("Deserialisation");
+                println!("Final cumulative Deserialisation of {} items completed in: {}ms ({}ns)",
+                         self.run_processed_items, self.large_queue_ser_ms, self.large_queue_ser_ns);
                 self.display_run_duration();
             }
         }
@@ -294,18 +306,6 @@ impl BuildSpeedTestDurations for Vec<TestRun> {
                         longest_run_number: 0,
                         average_duration: 0
                     }
-                }
-            }
-            StatType::AddSer => {
-                let mut run_gaps: Vec<i64> = self.windows(2).map(|w| w[1].add_ser_ms - w[0].add_ser_ms).collect::<Vec<i64>>();
-                run_gaps.sort_by(|a, b| a.cmp(&b));
-                let middle: usize = run_gaps.len() / 2;
-                SpeedTestDurations {
-                    shortest_duration: run_gaps.first().cloned(),
-                    shortest_run_number: 0,
-                    longest_duration: run_gaps.last().cloned(),
-                    longest_run_number: 0,
-                    average_duration: run_gaps[middle]
                 }
             }
         };
@@ -552,6 +552,25 @@ pub(crate) fn test_enum_serialisation(message: &AcarsVdlm2Message) {
         encoded_string.as_ref().err()
     );
     let encoded_bytes: MessageResult<Vec<u8>> = message.to_bytes();
+    assert_eq!(
+        encoded_bytes.as_ref().err().is_none(),
+        true,
+        "Parsing data {:?} to bytes failed: {:?}",
+        message,
+        encoded_bytes.as_ref().err()
+    );
+}
+
+pub(crate) fn test_value_serialisation(message: &Value) {
+    let encoded_string: MessageResult<String> = serde_json::to_string(&message);
+    assert_eq!(
+        encoded_string.as_ref().err().is_none(),
+        true,
+        "Parsing data {:?} to String failed: {:?}",
+        message,
+        encoded_string.as_ref().err()
+    );
+    let encoded_bytes: MessageResult<Vec<u8>> = serde_json::to_vec(&message);
     assert_eq!(
         encoded_bytes.as_ref().err().is_none(),
         true,
