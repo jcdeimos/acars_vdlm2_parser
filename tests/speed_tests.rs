@@ -106,6 +106,7 @@ impl SpeedTest for i64 {
                 println!("Loaded data successfully");
                 let mut rng: ThreadRng = thread_rng();
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
+                println!("Processing {} messages in a queue", test_message_queue.len());
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<AcarsVdlm2Message>>> = Arc::new(Mutex::new(Vec::new()));
                 println!("Running tests");
@@ -204,6 +205,7 @@ impl SpeedTest for i64 {
                 println!("Loaded data successfully");
                 let mut rng: ThreadRng = thread_rng();
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
+                println!("Processing {} messages in a queue", test_message_queue.len());
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
                 println!("Running tests");
