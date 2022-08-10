@@ -6,15 +6,24 @@ use rand::rngs::ThreadRng;
 use rand::thread_rng;
 use acars_vdlm2_parser::{AcarsVdlm2Message, DecodeMessage, MessageResult};
 use crate::common::{combine_files_of_message_type, ContentDuplicator, DisplaySpeedTestResults, StopwatchType, MessageType, RunDurations, SpeedTestDurations, SpeedTestType, Stopwatch, test_enum_serialisation, TestRun};
+use rayon::prelude::*;
 
 #[test]
 #[ignore]
 fn test_serialisation_deserialisation_speed() {
-    100.iterating_rounds().display_results(SpeedTestType::IteratingRounds);
-    500.iterating_rounds().display_results(SpeedTestType::IteratingRounds);
-    1000.large_queue().display_results(SpeedTestType::LargeQueue);
-    5000.large_queue().display_results(SpeedTestType::LargeQueue);
-    10_000.large_queue().display_results(SpeedTestType::LargeQueue);
+    let rounds_100 = 100.iterating_rounds();
+    let rounds_500 = 500.iterating_rounds();
+    let large_1000 = 1000.large_queue();
+    let large_5000 = 5000.large_queue();
+    let large_10_000 = 10_000.large_queue();
+    let rounds = vec![rounds_100,rounds_500];
+    let large_queue = vec![large_1000, large_5000, large_10_000];
+    for round in rounds {
+        round.display_results(SpeedTestType::IteratingRounds);
+    }
+    for queue in large_queue {
+        queue.display_results(SpeedTestType::LargeQueue);
+    }
 }
 
 /// Trait for performing speed tests.
