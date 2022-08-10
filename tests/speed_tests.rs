@@ -1,6 +1,7 @@
 mod common;
 
 use std::error::Error;
+use std::sync::{Arc, Mutex};
 use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
 use rand::thread_rng;
@@ -11,11 +12,11 @@ use rayon::prelude::*;
 #[test]
 #[ignore]
 fn test_serialisation_deserialisation_speed() {
-    let rounds_100 = 100.iterating_rounds();
-    let rounds_500 = 500.iterating_rounds();
-    let large_1000 = 1000.large_queue();
-    let large_5000 = 5000.large_queue();
-    let large_10_000 = 10_000.large_queue();
+    let rounds_100: Result<RunDurations, Box<dyn Error>> = 100.iterating_rounds();
+    let rounds_500: Result<RunDurations, Box<dyn Error>> = 500.iterating_rounds();
+    let large_1000: Result<RunDurations, Box<dyn Error>> = 1000.large_queue();
+    let large_5000: Result<RunDurations, Box<dyn Error>> = 5000.large_queue();
+    let large_10_000: Result<RunDurations, Box<dyn Error>> = 10_000.large_queue();
     let rounds = vec![rounds_100,rounds_500];
     let large_queue = vec![large_1000, large_5000, large_10_000];
     for round in rounds {
@@ -42,32 +43,33 @@ impl SpeedTest for i64 {
             combine_files_of_message_type(MessageType::All);
         match load_all_messages {
             Err(load_error) => Err(load_error),
-            Ok(mut all_messages) => {
+            Ok(all_messages) => {
                 println!("Loaded data successfully");
-                let mut rng: ThreadRng = thread_rng();
-                let mut successfully_decoded_items: Vec<AcarsVdlm2Message> = Vec::new();
-                let mut run_durations: RunDurations = RunDurations::new();
+                let successfully_decoded_items: Arc<Mutex<Vec<AcarsVdlm2Message>>> = Arc::new(Mutex::new(Vec::new()));
+                let run_durations: Arc<Mutex<RunDurations>> = Arc::new(Mutex::new(RunDurations::new()));
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
-                for run in 0..*self {
+                (0..*self).into_par_iter().for_each(|run| {
                     println!("Run {}/{} =>", run + 1, &self);
+                    let mut run_messages = all_messages.to_vec();
+                    let mut rng: ThreadRng = thread_rng();
                     let mut test_run: TestRun = TestRun::new(&run);
-                    all_messages.shuffle(&mut rng);
+                    run_messages.shuffle(&mut rng);
                     let mut run_deserialisation_successful_items: Vec<AcarsVdlm2Message> = Vec::new();
                     let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::AllDeser);
-                    for entry in &all_messages {
+                    for entry in &run_messages {
                         let parsed_message: MessageResult<AcarsVdlm2Message> = entry.decode_message();
                         match parsed_message {
                             Err(_) => {}
                             Ok(decoded_message) => {
-                                successfully_decoded_items.push(decoded_message.clone());
+                                successfully_decoded_items.lock().unwrap().push(decoded_message.clone());
                                 run_deserialisation_successful_items.push(decoded_message.clone());
                             }
                         }
                     }
                     deserialisation_run_stopwatch.stop();
-                    println!("Run contained {}/{} successful items", run_deserialisation_successful_items.len(), all_messages.len());
+                    println!("Run contained {}/{} successful items", run_deserialisation_successful_items.len(), run_messages.len());
                     test_run.update_run_durations(&deserialisation_run_stopwatch);
-                    successfully_decoded_items.shuffle(&mut rng);
+                    successfully_decoded_items.lock().unwrap().shuffle(&mut rng);
                     run_deserialisation_successful_items.shuffle(&mut rng);
                     let mut serialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::AllSer);
                     for message in &run_deserialisation_successful_items {
@@ -75,27 +77,30 @@ impl SpeedTest for i64 {
                     }
                     serialisation_run_stopwatch.stop();
                     test_run.update_run_durations(&serialisation_run_stopwatch);
-                    println!("Decoded items now contains {} items", successfully_decoded_items.len());
+                    println!("Decoded items now contains {} items", successfully_decoded_items.lock().unwrap().len());
                     let mut additive_serialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::AddSer);
-                    for message in &successfully_decoded_items {
+                    for message in successfully_decoded_items.lock().unwrap().iter() {
                         test_enum_serialisation(message);
                     }
                     additive_serialisation_run_stopwatch.stop();
                     test_run.update_run_durations(&additive_serialisation_run_stopwatch);
-                    run_durations.test_runs.push(test_run);
-                }
-                run_durations.run_processed_items = successfully_decoded_items.len();
-                successfully_decoded_items.shuffle(&mut rng);
+                    run_durations.lock().unwrap().test_runs.push(test_run);
+                });
+                let mut rng: ThreadRng = thread_rng();
+                let mut run_lock = run_durations.lock().unwrap();
+                let mut decoded_items_lock = successfully_decoded_items.lock().unwrap();
+                run_lock.run_processed_items = decoded_items_lock.len();
+                decoded_items_lock.shuffle(&mut rng);
                 let mut final_cumulative_serialisation_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueSer);
-                for message in &successfully_decoded_items {
+                for message in decoded_items_lock.iter() {
                     test_enum_serialisation(message);
                 }
                 final_cumulative_serialisation_stopwatch.stop();
                 total_run_stopwatch.stop();
-                run_durations.update_run_durations(&final_cumulative_serialisation_stopwatch);
-                run_durations.update_run_durations(&total_run_stopwatch);
+                run_lock.update_run_durations(&final_cumulative_serialisation_stopwatch);
+                run_lock.update_run_durations(&total_run_stopwatch);
                 println!("Speed test completed, storing results.");
-                Ok(run_durations)
+                Ok(run_lock.clone())
             }
         }
     }
@@ -114,30 +119,31 @@ impl SpeedTest for i64 {
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
                 println!("Queue contains {} messages", test_message_queue.len());
                 run_durations.run_processed_items = test_message_queue.len();
-                let mut successfully_decoded_items: Vec<AcarsVdlm2Message> = Vec::new();
+                let successfully_decoded_items: Arc<Mutex<Vec<AcarsVdlm2Message>>> = Arc::new(Mutex::new(Vec::new()));
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
                 println!("Shuffling the queue");
                 test_message_queue.shuffle(&mut rng);
                 println!("Deserialising the queue");
                 let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueDeser);
-                for entry in &test_message_queue {
+                test_message_queue.par_iter().for_each(|entry| {
                     let parsed_message: MessageResult<AcarsVdlm2Message> = entry.decode_message();
                     match parsed_message {
                         Err(_) => {}
                         Ok(decoded_message) => {
-                            successfully_decoded_items.push(decoded_message.clone());
+                            successfully_decoded_items.lock().unwrap().push(decoded_message.clone());
                         }
                     }
-                }
+                });
                 deserialisation_run_stopwatch.stop();
+                let mut successfully_decoded_items_lock = successfully_decoded_items.lock().unwrap();
                 run_durations.update_run_durations(&deserialisation_run_stopwatch);
                 println!("Deserialisation completed, shuffling the successful results");
-                successfully_decoded_items.shuffle(&mut rng);
+                successfully_decoded_items_lock.shuffle(&mut rng);
                 println!("Serialising the queue");
                 let mut serialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueSer);
-                for message in &successfully_decoded_items {
+                successfully_decoded_items_lock.par_iter().for_each(|message| {
                     test_enum_serialisation(message);
-                }
+                });
                 serialisation_run_stopwatch.stop();
                 total_run_stopwatch.stop();
                 run_durations.update_run_durations(&serialisation_run_stopwatch);
