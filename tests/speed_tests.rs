@@ -20,12 +20,6 @@ fn test_serialisation_deserialisation_speed() {
     let large_10_000_library: Result<RunDurations, Box<dyn Error>> = 10_000.large_queue_library();
     let rounds_library: Vec<Result<RunDurations, Box<dyn Error>>> = vec![rounds_100_library, rounds_500_library];
     let large_queue_library: Vec<Result<RunDurations, Box<dyn Error>>> = vec![large_1000_library, large_5000_library, large_10_000_library];
-    for round in rounds_library {
-        round.display_results(SpeedTestType::IteratingRoundsLibrary);
-    }
-    for queue in large_queue_library {
-        queue.display_results(SpeedTestType::LargeQueueLibrary);
-    }
     let rounds_100_value: Result<RunDurations, Box<dyn Error>> = 100.iterating_rounds_library();
     let rounds_500_value: Result<RunDurations, Box<dyn Error>> = 500.iterating_rounds_library();
     let large_1000_value: Result<RunDurations, Box<dyn Error>> = 1000.large_queue_library();
@@ -33,6 +27,12 @@ fn test_serialisation_deserialisation_speed() {
     let large_10_000_value: Result<RunDurations, Box<dyn Error>> = 10_000.large_queue_library();
     let rounds_value: Vec<Result<RunDurations, Box<dyn Error>>> = vec![rounds_100_value, rounds_500_value];
     let large_queue_value: Vec<Result<RunDurations, Box<dyn Error>>> = vec![large_1000_value, large_5000_value, large_10_000_value];
+    for round in rounds_library {
+        round.display_results(SpeedTestType::IteratingRoundsLibrary);
+    }
+    for queue in large_queue_library {
+        queue.display_results(SpeedTestType::LargeQueueLibrary);
+    }
     for round in rounds_value {
         round.display_results(SpeedTestType::IteratingRoundsValue);
     }
