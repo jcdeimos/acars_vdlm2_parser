@@ -215,8 +215,8 @@ impl SpeedTestComparisons {
             test_two_ser.shortest_duration_ns) {
             comparison_table.add_row(row![
                     "Shortest Serialisation",
-                    format!("{}ms ({}ns), Run {}", test_one_ms, test_one_ns, test_one_ser.shortest_run_number),
-                    format!("{}ms ({}ns), Run {}", test_two_ms, test_two_ns, test_two_ser.shortest_run_number)
+                    format!("{} items, {}ms ({}ns), Run {}", test_one_ser.shortest_run_items, test_one_ms, test_one_ns, test_one_ser.shortest_run_number),
+                    format!("{} items, {}ms ({}ns), Run {}", test_two_ser.shortest_run_items, test_two_ms, test_two_ns, test_two_ser.shortest_run_number)
                 ]);
         }
         if let (
@@ -230,14 +230,14 @@ impl SpeedTestComparisons {
             test_two_ser.longest_duration_ns) {
             comparison_table.add_row(row![
                 "Longest Serialisation",
-                format!("{}ms ({}ns), Run {}", test_one_ms, test_one_ns, test_one_ser.longest_run_number),
-                format!("{}ms ({}ns), Run {}", test_two_ms, test_two_ns, test_two_ser.longest_run_number)
+                format!("{} items, {}ms ({}ns), Run {}", test_one_ser.longest_run_items, test_one_ms, test_one_ns, test_one_ser.longest_run_number),
+                format!("{} items, {}ms ({}ns), Run {}", test_two_ser.longest_run_items, test_two_ms, test_two_ns, test_two_ser.longest_run_number)
                 ]);
         }
         comparison_table.add_row(row![
                 "Average Serialisation",
-                format!("{}ms ({}ns)", test_one_ser.average_duration_ms, test_one_ser.average_duration_ns),
-                format!("{}ms ({}ns)",test_two_ser.average_duration_ms, test_two_ser.average_duration_ns)
+                format!("{} items, {}ms ({}ns)", test_one_ser.average_duration_items, test_one_ser.average_duration_ms, test_one_ser.average_duration_ns),
+                format!("{} items, {}ms ({}ns)", test_two_ser.average_duration_items, test_two_ser.average_duration_ms, test_two_ser.average_duration_ns)
                 ]);
         if let (
             Some(test_one_ms),
@@ -250,8 +250,8 @@ impl SpeedTestComparisons {
             test_two_deser.shortest_duration_ns) {
             comparison_table.add_row(row![
                 "Shortest Deserialisation",
-                format!("{}ms ({}ns), Run {}", test_one_ms, test_one_ns, test_one_deser.shortest_run_number),
-                format!("{}ms ({}ns), Run {}", test_two_ms, test_two_ns, test_two_deser.shortest_run_number)
+                format!("{} items, {}ms ({}ns), Run {}", test_one_deser.shortest_run_items, test_one_ms, test_one_ns, test_one_deser.shortest_run_number),
+                format!("{} items, {}ms ({}ns), Run {}", test_two_deser.shortest_run_items, test_two_ms, test_two_ns, test_two_deser.shortest_run_number)
                 ]);
         }
         if let (
@@ -265,15 +265,15 @@ impl SpeedTestComparisons {
             test_two_deser.longest_duration_ns) {
             comparison_table.add_row(row![
                 "Longest Deserialisation",
-                format!("{}ms ({}ns), Run {}", test_one_ms, test_one_ns, test_one_deser.longest_run_number),
-                format!("{}ms ({}ns), Run {}", test_two_ms, test_two_ns, test_two_deser.longest_run_number)
+                format!("{} items, {}ms ({}ns), Run {}", test_one_deser.longest_run_items, test_one_ms, test_one_ns, test_one_deser.longest_run_number),
+                format!("{} items, {}ms ({}ns), Run {}", test_two_deser.longest_run_items, test_two_ms, test_two_ns, test_two_deser.longest_run_number)
                 ]);
         }
         comparison_table.add_row(
             row![
                 "Average Deserialisation",
-                format!("{}ms  ({}ns)", test_one_deser.average_duration_ms, test_one_deser.average_duration_ns),
-                format!("{}ms ({}ns)", test_two_deser.average_duration_ms, test_two_deser.average_duration_ns)
+                format!("{} items, {}ms  ({}ns)", test_one_deser.average_duration_items, test_one_deser.average_duration_ms, test_one_deser.average_duration_ns),
+                format!("{} items, {}ms ({}ns)", test_two_deser.average_duration_items, test_two_deser.average_duration_ms, test_two_deser.average_duration_ns)
                 ]);
         comparison_table.add_row(row![
             "Total Runtime",
@@ -313,11 +313,14 @@ pub(crate) struct SpeedTestDurations {
     pub(crate) shortest_duration_ms: Option<i64>,
     pub(crate) shortest_duration_ns: Option<i64>,
     pub(crate) shortest_run_number: i64,
+    pub(crate) shortest_run_items: usize,
     pub(crate) longest_duration_ms: Option<i64>,
     pub(crate) longest_duration_ns: Option<i64>,
     pub(crate) longest_run_number: i64,
+    pub(crate) longest_run_items: usize,
     pub(crate) average_duration_ms: i64,
-    pub(crate) average_duration_ns: i64
+    pub(crate) average_duration_ns: i64,
+    pub(crate) average_duration_items: usize,
 }
 
 pub(crate) trait BuildSpeedTestDurations {
@@ -338,22 +341,28 @@ impl BuildSpeedTestDurations for Vec<TestRun> {
                             shortest_duration_ms: Some(first.deser_ms),
                             shortest_duration_ns: Some(first.deser_ns),
                             shortest_run_number: first.run_number,
+                            shortest_run_items: first.run_items,
                             longest_duration_ms: Some(last.deser_ms),
                             longest_duration_ns: Some(last.deser_ns),
+                            longest_run_items: last.run_items,
                             longest_run_number: last.run_number,
                             average_duration_ms: self[middle].deser_ms,
-                            average_duration_ns: self[middle].deser_ns
+                            average_duration_ns: self[middle].deser_ns,
+                            average_duration_items: self[middle].run_items
                         }
                     }
                     (_,_) => SpeedTestDurations {
                         shortest_duration_ms: None,
                         shortest_duration_ns: None,
                         shortest_run_number: 0,
+                        shortest_run_items: 0,
                         longest_duration_ms: None,
                         longest_duration_ns: None,
                         longest_run_number: 0,
+                        longest_run_items: 0,
                         average_duration_ms: 0,
-                        average_duration_ns: 0
+                        average_duration_ns: 0,
+                        average_duration_items: 0
                     }
                 }
             }
@@ -367,22 +376,28 @@ impl BuildSpeedTestDurations for Vec<TestRun> {
                             shortest_duration_ms: Some(first.ser_ms),
                             shortest_duration_ns: Some(first.ser_ns),
                             shortest_run_number: first.run_number,
+                            shortest_run_items: first.run_items,
                             longest_duration_ms: Some(last.ser_ms),
                             longest_duration_ns: Some(last.ser_ns),
+                            longest_run_items: last.run_items,
                             longest_run_number: last.run_number,
                             average_duration_ms: self[middle].ser_ms,
-                            average_duration_ns: self[middle].ser_ns
+                            average_duration_ns: self[middle].ser_ns,
+                            average_duration_items: self[middle].run_items
                         }
                     }
                     (_,_) => SpeedTestDurations {
                         shortest_duration_ms: None,
                         shortest_duration_ns: None,
                         shortest_run_number: 0,
+                        shortest_run_items: 0,
                         longest_duration_ms: None,
                         longest_duration_ns: None,
                         longest_run_number: 0,
+                        longest_run_items: 0,
                         average_duration_ms: 0,
-                        average_duration_ns: 0
+                        average_duration_ns: 0,
+                        average_duration_items: 0
                     }
                 }
             }
