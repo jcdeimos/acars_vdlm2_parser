@@ -12,13 +12,17 @@ use serde_json::Value;
 
 #[test]
 #[ignore]
-fn test_serialisation_deserialisation_speed() {
+fn test_speed_iterating_rounds() {
     println!();
     round_results(50.iterating_rounds_library(), 50.iterating_rounds_value());
     round_results(100.iterating_rounds_library(), 100.iterating_rounds_value());
     round_results(250.iterating_rounds_library(), 250.iterating_rounds_value());
     round_results(500.iterating_rounds_library(), 500.iterating_rounds_value());
     round_results(750.iterating_rounds_library(), 750.iterating_rounds_value());
+}
+#[test]
+#[ignore]
+fn test_speed_large_queue() {
     large_queue_results(1_000.large_queue_library(), 1_000.large_queue_value());
     large_queue_results(2_500.large_queue_library(), 2_500.large_queue_value());
     large_queue_results(5_000.large_queue_library(), 5_000.large_queue_value());
