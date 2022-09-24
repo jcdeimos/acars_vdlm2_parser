@@ -198,7 +198,7 @@ pub struct SrcBlock {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct XidBlock {
     pub err: bool,
-    pub pub_params: Vec<XidParam>,
+    pub pub_params: Option<Vec<XidParam>>,
     #[serde(rename = "type")]
     pub xid_type: String,
     #[serde(rename = "type_descr")]
@@ -220,8 +220,25 @@ pub enum ParamValueType {
     VecString(Vec<String>),
     CoOrdinates(CoOrdinates),
     I32(i32),
-    RetrySequence { retry: i32, seq: i32 },
-    AltLoc { alt: i32, loc: CoOrdinates },
+    RetrySequence {
+        retry: i32,
+        seq: i32,
+    },
+    AltLoc {
+        alt: i32,
+        loc: CoOrdinates,
+    },
+    ProtocolViolation {
+        cause_code: u16,
+        cause_descr: String,
+        delay: u16,
+        additional_data: Vec<u16>,
+    },
+    LCRCause {
+        cause_code: u16,
+        cause_descr: String,
+        delay: u16,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -240,9 +257,9 @@ pub struct AvlcAcars {
     pub label: String,
     pub blk_id: String,
     pub ack: String,
-    pub flight: String,
-    pub msg_num: String,
-    pub msg_num_seq: String,
+    pub flight: Option<String>,
+    pub msg_num: Option<String>,
+    pub msg_num_seq: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sublabel: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -273,6 +290,10 @@ pub struct AdscEntry {
 pub enum AdscTags {
     Ack {
         contract_num: u16,
+    },
+    Nack {
+        contract_req_num: u16,
+        reason: u16,
     },
     BasicReport {
         lat: f64,
