@@ -198,6 +198,7 @@ pub struct SrcBlock {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct XidBlock {
     pub err: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pub_params: Option<Vec<XidParam>>,
     #[serde(rename = "type")]
     pub xid_type: String,
@@ -257,8 +258,11 @@ pub struct AvlcAcars {
     pub label: String,
     pub blk_id: String,
     pub ack: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub flight: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub msg_num: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub msg_num_seq: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sublabel: Option<String>,
@@ -275,6 +279,7 @@ pub struct Arinc622 {
     pub crc_ok: bool,
     pub gs_addr: String,
     pub air_addr: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub adsc: Option<AdscEntry>,
     pub cpdlc: Option<CPDLC>,
 }
@@ -309,6 +314,7 @@ pub enum AdscTags {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct CPDLC {
     pub err: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub atc_downlink_msg: Option<ATCDownlinkMsg>,
 }
 
@@ -319,7 +325,6 @@ pub struct ATCDownlinkMsg {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
-#[serde(rename_all = "snake_case")]
 pub struct ATCDownlinkTimestamp {
     hour: u16,
     min: u16,
@@ -327,7 +332,6 @@ pub struct ATCDownlinkTimestamp {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
-#[serde(rename_all = "snake_case")]
 pub struct ATCDownlinkData {
     ver_num: u16,
 }
