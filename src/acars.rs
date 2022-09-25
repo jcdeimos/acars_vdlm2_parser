@@ -94,10 +94,7 @@ impl AcarsMessage {
     }
 
     pub fn get_time(&self) -> Option<f64> {
-        match &self.timestamp {
-            None => None,
-            Some(timestamp) => Some(*timestamp)
-        }
+        self.timestamp.as_ref().copied()
     }
     
     pub fn clear_channel(&mut self) {
