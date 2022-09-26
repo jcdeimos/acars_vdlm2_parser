@@ -324,6 +324,18 @@ pub enum AdscTags {
         nav_redundancy: bool,
         tcas_avail: bool
     },
+    PeriodicContractReq {
+        contract_num: u16,
+        groups: Vec<AdscTagGroups>
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[serde(rename_all = "snake_case")]
+pub enum AdscTagGroups {
+    ReportInterval {
+        interval_secs: u16
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
