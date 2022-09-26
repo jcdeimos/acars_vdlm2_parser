@@ -144,15 +144,21 @@ pub struct Vdlm2Message {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct Vdlm2Body {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub app: Option<AppDetails>,
     pub avlc: AvlcData,
     pub burst_len_octets: u16,
     pub freq: u64,
     pub idx: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub freq_skew: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub hdr_bits_fixed: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub noise_level: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub octets_corrected_by_fec: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sig_level: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub station: Option<String>,
@@ -289,6 +295,7 @@ pub struct Arinc622 {
     pub air_addr: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub adsc: Option<AdscEntry>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cpdlc: Option<CPDLC>
 }
 
