@@ -36,7 +36,8 @@ impl Vdlm2Message {
     pub fn to_string(&self) -> MessageResult<String> {
         serde_json::to_string(self)
     }
-    
+
+
     /// Converts `Vdlm2Message` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
         let data = serde_json::to_string(self);
@@ -56,7 +57,8 @@ impl Vdlm2Message {
             Ok(string) => Ok(string.into_bytes())
         }
     }
-    
+
+
     /// Converts `Vdlm2Message` to a `String` terminated with a `\n` and encoded as bytes.
     ///
     /// The output is returned as a `Vec<u8>`.
@@ -108,35 +110,37 @@ impl Vdlm2Message {
             }
         }
     }
-    
+
+
     pub fn clear_freq_skew(&mut self) {
         self.vdl2.freq_skew = None;
     }
-    
+
+
     pub fn clear_hdr_bits_fixed(&mut self) {
         self.vdl2.hdr_bits_fixed = None;
     }
-    
+
+
     pub fn clear_noise_level(&mut self) {
         self.vdl2.noise_level = None;
     }
-    
+
+
     pub fn clear_octets_corrected_by_fec(&mut self) {
         self.vdl2.octets_corrected_by_fec = None;
     }
-    
+
+
     pub fn clear_sig_level(&mut self) {
         self.vdl2.sig_level = None;
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct Vdlm2Message {
     pub vdl2: Vdlm2Body
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct Vdlm2Body {
@@ -202,7 +206,8 @@ pub struct SrcBlock {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct XidBlock {
     pub err: bool,
-    pub pub_params: Vec<XidParam>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pub_params: Option<Vec<XidParam>>,
     #[serde(rename = "type")]
     pub xid_type: String,
     #[serde(rename = "type_descr")]
@@ -231,7 +236,18 @@ pub enum ParamValueType {
     AltLoc {
         alt: i32,
         loc: CoOrdinates
-    }
+    },
+    ProtocolViolation {
+        cause_code: u16,
+        cause_descr: String,
+        delay: u16,
+        additional_data: Vec<u16>
+    },
+    LCRCause {
+        cause_code: u16,
+        cause_descr: String,
+        delay: u16
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -250,9 +266,12 @@ pub struct AvlcAcars {
     pub label: String,
     pub blk_id: String,
     pub ack: String,
-    pub flight: String,
-    pub msg_num: String,
-    pub msg_num_seq: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flight: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub msg_num: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub msg_num_seq: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sublabel: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -268,7 +287,9 @@ pub struct Arinc622 {
     pub crc_ok: bool,
     pub gs_addr: String,
     pub air_addr: String,
-    pub adsc: AdscEntry
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub adsc: Option<AdscEntry>,
+    pub cpdlc: Option<CPDLC>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -283,6 +304,10 @@ pub enum AdscTags {
     Ack {
         contract_num: u16
     },
+    Nack {
+        contract_req_num: u16,
+        reason: u16
+    },
     BasicReport {
         lat: f64,
         lon: f64,
@@ -291,5 +316,44 @@ pub enum AdscTags {
         pos_accuracy_nm: f64,
         nav_redundancy: bool,
         tcas_avail: bool
-    }
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub struct CPDLC {
+    pub err: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atc_downlink_msg: Option<ATCDownlinkMsg>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub struct ATCDownlinkMsg {
+    pub header: ATCDownlinkMsgHeader,
+    pub atc_downlink_msg_element_id: ATCDownlinkMsgElementID
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub struct ATCDownlinkTimestamp {
+    hour: u16,
+    min: u16,
+    sec: u16
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub struct ATCDownlinkData {
+    ver_num: u16
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub struct ATCDownlinkMsgHeader {
+    msg_id: u16,
+    msg_ref: u16,
+    timestamp: ATCDownlinkTimestamp
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub struct ATCDownlinkMsgElementID {
+    choice_label: String,
+    choice: String,
+    data: ATCDownlinkData
 }
