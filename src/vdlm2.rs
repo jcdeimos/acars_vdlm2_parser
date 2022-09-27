@@ -254,6 +254,10 @@ pub enum ParamValueType {
         cause_descr: String,
         delay: u16
     },
+    AutoTune {
+        freq_mhz: f64,
+        modulation_support: Vec<String>
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -360,7 +364,8 @@ pub struct ATCDownlinkTimestamp {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct ATCDownlinkData {
-    ver_num: u16
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ver_num: Option<u16>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
