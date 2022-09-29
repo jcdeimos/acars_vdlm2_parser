@@ -319,15 +319,9 @@ pub enum AdscTags {
         contract_req_num: u16,
         reason: u16
     },
-    BasicReport {
-        lat: f64,
-        lon: f64,
-        alt: i64,
-        ts_sec: f64,
-        pos_accuracy_nm: f64,
-        nav_redundancy: bool,
-        tcas_avail: bool
-    },
+    BasicReport(AdscEventData),
+    AltRangeEvent(AdscEventData),
+    WptChangeEvent(AdscEventData),
     PeriodicContractReq {
         contract_num: u16,
         groups: Vec<AdscTagGroups>
@@ -335,7 +329,48 @@ pub enum AdscTags {
     PredictedRoute {
         next_wpt: AdscWaypoint,
         next_next_wpt: AdscWaypoint
-    }
+    },
+    EarthRefData {
+        vspd_ftmin: i32,
+        gnd_spd_kts: f64,
+        true_trk_deg: f64,
+        true_trk_valid: bool
+    },
+    MeteoData {
+        temp_c: f64,
+        wind_spd_kts: f64,
+        wind_dir_valid: bool,
+        wind_dir_true_deg: f64
+    },
+    NoncompNotify {
+        msg_groups: Vec<NonCompMessageGroup>,
+        contract_req_num: i64
+    },
+    IntermediateProjection {
+        alt: i64,
+        dist_nm: f64,
+        eta_sec: i64,
+        true_trk_deg: f64,
+        true_trk_valid: bool
+    },
+    FixedProjection {
+        alt: i64,
+        lat: f64,
+        lon: f64,
+        eta_sec: i64
+    },
+    FlightId {
+        flight_id: String
+    },
+    AirRefData {
+        spd_mach: f64,
+        vspd_ftmin: f64,
+        true_hdg_deg: f64,
+        true_hdg_valid: bool
+    },
+    Reason {
+        reason_code: i64
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -352,6 +387,23 @@ pub struct AdscWaypoint {
     pub lon: f64,
     pub alt: i32,
     pub eta_sec: Option<i16>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub struct NonCompMessageGroup {
+    pub noncomp_tag: i64,
+    pub noncomp_cause: String
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub struct AdscEventData {
+    pub alt: i64,
+    pub lat: f64,
+    pub lon: f64,
+    pub ts_sec: f64,
+    pub tcas_avail: bool,
+    pub nav_redundancy: bool,
+    pub pos_accuracy_nm: f64
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
