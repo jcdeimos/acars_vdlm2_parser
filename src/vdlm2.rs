@@ -331,6 +331,10 @@ pub enum AdscTags {
     PeriodicContractReq {
         contract_num: u16,
         groups: Vec<AdscTagGroups>
+    },
+    PredictedRoute {
+        next_wpt: AdscWaypoint,
+        next_next_wpt: AdscWaypoint
     }
 }
 
@@ -340,6 +344,14 @@ pub enum AdscTagGroups {
     ReportInterval {
         interval_secs: u16
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub struct AdscWaypoint {
+    pub lat: f64,
+    pub lon: f64,
+    pub alt: i32,
+    pub eta_sec: Option<i16>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -371,7 +383,7 @@ pub struct ATCDownlinkData {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct ATCDownlinkMsgHeader {
     msg_id: u16,
-    msg_ref: u16,
+    msg_ref: Option<u16>,
     timestamp: ATCDownlinkTimestamp
 }
 
