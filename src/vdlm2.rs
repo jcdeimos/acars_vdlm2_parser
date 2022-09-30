@@ -1,5 +1,6 @@
 use std::num::ParseFloatError;
 use serde::{Serialize, Deserialize};
+use serde_json::Value;
 use crate::{AppDetails, MessageResult};
 
 /// Trait for performing a decode if you wish to apply it to types other than the defaults done in this library.
@@ -137,12 +138,12 @@ impl Vdlm2Message {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Vdlm2Message {
     pub vdl2: Vdlm2Body
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Vdlm2Body {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app: Option<AppDetails>,
@@ -172,7 +173,7 @@ pub struct TBlock {
     pub usec: u64
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AvlcData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cmd: Option<String>,
@@ -266,7 +267,7 @@ pub struct CoOrdinates {
     lon: f64
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AvlcAcars {
     pub err: bool,
     pub crc_ok: bool,
@@ -291,7 +292,7 @@ pub struct AvlcAcars {
     pub arinc622: Option<Arinc622>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Arinc622 {
     pub msg_type: String,
     pub crc_ok: bool,
@@ -303,74 +304,10 @@ pub struct Arinc622 {
     pub cpdlc: Option<CPDLC>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AdscEntry {
-    pub tags: Vec<AdscTags>,
+    pub tags: Vec<Value>,
     pub err: bool
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
-#[serde(rename_all = "snake_case")]
-pub enum AdscTags {
-    Ack {
-        contract_num: u16
-    },
-    Nack {
-        contract_req_num: u16,
-        reason: u16
-    },
-    BasicReport(AdscEventData),
-    AltRangeEvent(AdscEventData),
-    WptChangeEvent(AdscEventData),
-    PeriodicContractReq {
-        contract_num: u16,
-        groups: Vec<AdscTagGroups>
-    },
-    PredictedRoute {
-        next_wpt: AdscWaypoint,
-        next_next_wpt: AdscWaypoint
-    },
-    EarthRefData {
-        vspd_ftmin: i32,
-        gnd_spd_kts: f64,
-        true_trk_deg: f64,
-        true_trk_valid: bool
-    },
-    MeteoData {
-        temp_c: f64,
-        wind_spd_kts: f64,
-        wind_dir_valid: bool,
-        wind_dir_true_deg: f64
-    },
-    NoncompNotify {
-        msg_groups: Vec<NonCompMessageGroup>,
-        contract_req_num: i64
-    },
-    IntermediateProjection {
-        alt: i64,
-        dist_nm: f64,
-        eta_sec: i64,
-        true_trk_deg: f64,
-        true_trk_valid: bool
-    },
-    FixedProjection {
-        alt: i64,
-        lat: f64,
-        lon: f64,
-        eta_sec: i64
-    },
-    FlightId {
-        flight_id: String
-    },
-    AirRefData {
-        spd_mach: f64,
-        vspd_ftmin: f64,
-        true_hdg_deg: f64,
-        true_hdg_valid: bool
-    },
-    Reason {
-        reason_code: i64
-    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]

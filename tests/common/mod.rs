@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::error::Error;
 use std::ffi::OsStr;
 use std::fs::File;
@@ -9,7 +10,7 @@ use std::time::Duration;
 use humantime::format_duration;
 use chrono::{DateTime, Utc};
 use glob::{glob, GlobResult, Paths, PatternError};
-use prettytable::{row, Table, cell};
+use prettytable::{row, Table};
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -26,26 +27,20 @@ pub enum MessageType {
 }
 
 pub enum SpeedTestType {
-    IteratingRoundsLibrary,
     LargeQueueLibrary,
-    IteratingRoundsValue,
     LargeQueueValue
 }
 
 impl fmt::Display for SpeedTestType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            SpeedTestType::IteratingRoundsLibrary => write!(f, "Iterating Rounds Library"),
             SpeedTestType::LargeQueueLibrary => write!(f, "Large Queue Library"),
-            SpeedTestType::IteratingRoundsValue => write!(f, "Iterating Rounds Value"),
             SpeedTestType::LargeQueueValue => write!(f, "Large Queue Value")
         }
     }
 }
 
 pub enum StopwatchType {
-    AllDeser,
-    AllSer,
     LargeQueueSer,
     LargeQueueDeser,
     TotalRun
@@ -103,8 +98,6 @@ impl Stopwatch {
 #[derive(Debug, Clone, Default)]
 pub struct RunDurations {
     pub run_processed_items: usize,
-    pub total_test_runs: i64,
-    pub test_runs: Vec<TestRun>,
     pub large_queue_ser_ms: i64,
     pub large_queue_ser_ns: i64,
     pub large_queue_deser_ms: i64,
@@ -124,41 +117,10 @@ pub struct TestRun {
     pub ser_ns: i64
 }
 
-impl TestRun {
-    pub fn new(run_number: &i64) -> Self {
-        Self {
-            run_number: *run_number,
-            run_items: usize::default(),
-            deser_ms: i64::default(),
-            deser_ns: i64::default(),
-            ser_ms: i64::default(),
-            ser_ns: i64::default()
-        }
-    }
-    
-    pub fn update_run_durations(&mut self, stopwatch: &Stopwatch) {
-        match stopwatch.stopwatch_type {
-            StopwatchType::AllDeser => {
-                self.deser_ms = stopwatch.duration_ms;
-                self.deser_ns = stopwatch.duration_ns;
-            }
-            StopwatchType::AllSer => {
-                self.ser_ms = stopwatch.duration_ms;
-                self.ser_ns = stopwatch.duration_ms;
-            }
-            StopwatchType::LargeQueueSer => {}
-            StopwatchType::LargeQueueDeser => {}
-            StopwatchType::TotalRun => {}
-        }
-    }
-}
-
 impl RunDurations {
     pub fn new() -> Self {
         Self {
             run_processed_items: usize::default(),
-            total_test_runs: i64::default(),
-            test_runs: Vec::new(),
             large_queue_ser_ms: i64::default(),
             large_queue_ser_ns: i64::default(),
             large_queue_deser_ms: i64::default(),
@@ -169,8 +131,6 @@ impl RunDurations {
     }
     pub fn update_run_durations(&mut self, stopwatch: &Stopwatch) {
         match stopwatch.stopwatch_type {
-            StopwatchType::AllDeser => {}
-            StopwatchType::AllSer => {}
             StopwatchType::LargeQueueSer => {
                 self.large_queue_ser_ms = stopwatch.duration_ms;
                 self.large_queue_ser_ns = stopwatch.duration_ns;
@@ -195,97 +155,6 @@ pub struct SpeedTestComparisons {
 }
 
 impl SpeedTestComparisons {
-    pub fn compare_rounds(self) {
-        let mut comparison_table: Table = Table::new();
-        let mut test_one: RunDurations = self.test_one_results;
-        let mut test_two: RunDurations = self.test_two_results;
-        let test_one_ser: SpeedTestDurations = test_one.test_runs.get_run_stats(StatType::AllSer);
-        let test_one_deser: SpeedTestDurations = test_one.test_runs.get_run_stats(StatType::AllDeser);
-        let test_two_ser: SpeedTestDurations = test_two.test_runs.get_run_stats(StatType::AllSer);
-        let test_two_deser: SpeedTestDurations = test_two.test_runs.get_run_stats(StatType::AllDeser);
-        let test_one_duration = Duration::from_millis(*&test_one.total_run_ms as u64);
-        let test_two_duration = Duration::from_millis(*&test_two.total_run_ms as u64);
-        comparison_table.add_row(row!["Result", self.test_one_type, self.test_two_type]);
-        comparison_table.add_row(row!["Rounds", test_one.total_test_runs, test_two.total_test_runs]);
-        comparison_table.add_row(row!["Total processed items", test_one.run_processed_items, test_two.run_processed_items]);
-        if let (
-            Some(test_one_ms),
-            Some(test_one_ns),
-            Some(test_two_ms),
-            Some(test_two_ns)) = (
-            test_one_ser.shortest_duration_ms,
-            test_one_ser.shortest_duration_ns,
-            test_two_ser.shortest_duration_ms,
-            test_two_ser.shortest_duration_ns) {
-            comparison_table.add_row(row![
-                    "Shortest Serialisation",
-                    format!("{} items, {}ms ({}ns), Run {}", test_one_ser.shortest_run_items, test_one_ms, test_one_ns, test_one_ser.shortest_run_number),
-                    format!("{} items, {}ms ({}ns), Run {}", test_two_ser.shortest_run_items, test_two_ms, test_two_ns, test_two_ser.shortest_run_number)
-                ]);
-        }
-        if let (
-            Some(test_one_ms),
-            Some(test_one_ns),
-            Some(test_two_ms),
-            Some(test_two_ns)) = (
-            test_one_ser.longest_duration_ms,
-            test_one_ser.longest_duration_ns,
-            test_two_ser.longest_duration_ms,
-            test_two_ser.longest_duration_ns) {
-            comparison_table.add_row(row![
-                "Longest Serialisation",
-                format!("{} items, {}ms ({}ns), Run {}", test_one_ser.longest_run_items, test_one_ms, test_one_ns, test_one_ser.longest_run_number),
-                format!("{} items, {}ms ({}ns), Run {}", test_two_ser.longest_run_items, test_two_ms, test_two_ns, test_two_ser.longest_run_number)
-                ]);
-        }
-        comparison_table.add_row(row![
-                "Average Serialisation",
-                format!("{} items, {}ms ({}ns)", test_one_ser.average_duration_items, test_one_ser.average_duration_ms, test_one_ser.average_duration_ns),
-                format!("{} items, {}ms ({}ns)", test_two_ser.average_duration_items, test_two_ser.average_duration_ms, test_two_ser.average_duration_ns)
-                ]);
-        if let (
-            Some(test_one_ms),
-            Some(test_one_ns),
-            Some(test_two_ms),
-            Some(test_two_ns)) = (
-            test_one_deser.shortest_duration_ms,
-            test_one_deser.shortest_duration_ns,
-            test_two_deser.shortest_duration_ms,
-            test_two_deser.shortest_duration_ns) {
-            comparison_table.add_row(row![
-                "Shortest Deserialisation",
-                format!("{} items, {}ms ({}ns), Run {}", test_one_deser.shortest_run_items, test_one_ms, test_one_ns, test_one_deser.shortest_run_number),
-                format!("{} items, {}ms ({}ns), Run {}", test_two_deser.shortest_run_items, test_two_ms, test_two_ns, test_two_deser.shortest_run_number)
-                ]);
-        }
-        if let (
-            Some(test_one_ms),
-            Some(test_one_ns),
-            Some(test_two_ms),
-            Some(test_two_ns)) = (
-            test_one_deser.longest_duration_ms,
-            test_one_deser.longest_duration_ns,
-            test_two_deser.longest_duration_ms,
-            test_two_deser.longest_duration_ns) {
-            comparison_table.add_row(row![
-                "Longest Deserialisation",
-                format!("{} items, {}ms ({}ns), Run {}", test_one_deser.longest_run_items, test_one_ms, test_one_ns, test_one_deser.longest_run_number),
-                format!("{} items, {}ms ({}ns), Run {}", test_two_deser.longest_run_items, test_two_ms, test_two_ns, test_two_deser.longest_run_number)
-                ]);
-        }
-        comparison_table.add_row(
-            row![
-                "Average Deserialisation",
-                format!("{} items, {}ms  ({}ns)", test_one_deser.average_duration_items, test_one_deser.average_duration_ms, test_one_deser.average_duration_ns),
-                format!("{} items, {}ms ({}ns)", test_two_deser.average_duration_items, test_two_deser.average_duration_ms, test_two_deser.average_duration_ns)
-                ]);
-        comparison_table.add_row(row![
-            "Total Runtime",
-            format!("{} ({}ms) ({}ns)", format_duration(test_one_duration).to_string(), test_one.total_run_ms, test_one.total_run_ns),
-            format!("{} ({}ms) ({}ns)", format_duration(test_two_duration).to_string(), test_two.total_run_ms, test_two.total_run_ns)
-        ]);
-        comparison_table.printstd();
-    }
     pub fn compare_large_queue(self) {
         let mut comparison_table: Table = Table::new();
         let test_one: RunDurations = self.test_one_results;
@@ -310,103 +179,6 @@ impl SpeedTestComparisons {
             format!("{} ({}ms) ({}ns)", format_duration(test_two_duration).to_string(), test_two.total_run_ms, test_two.total_run_ns)
         ]);
         comparison_table.printstd();
-    }
-}
-
-pub struct SpeedTestDurations {
-    pub shortest_duration_ms: Option<i64>,
-    pub shortest_duration_ns: Option<i64>,
-    pub shortest_run_number: i64,
-    pub shortest_run_items: usize,
-    pub longest_duration_ms: Option<i64>,
-    pub longest_duration_ns: Option<i64>,
-    pub longest_run_number: i64,
-    pub longest_run_items: usize,
-    pub average_duration_ms: i64,
-    pub average_duration_ns: i64,
-    pub average_duration_items: usize,
-}
-
-pub trait BuildSpeedTestDurations {
-    fn get_run_stats(&mut self, stat_type: StatType) -> SpeedTestDurations;
-}
-
-impl BuildSpeedTestDurations for Vec<TestRun> {
-    fn get_run_stats(&mut self, stat_type: StatType) -> SpeedTestDurations {
-        let middle: usize = self.len() / 2;
-        let duration = match stat_type {
-            StatType::AllDeser => {
-                self.sort_by(|a, b| a.deser_ns.cmp(&b.deser_ns));
-                let first = self.first();
-                let last = self.last();
-                match (first, last) {
-                    (Some(first), Some(last)) => {
-                        SpeedTestDurations {
-                            shortest_duration_ms: Some(first.deser_ms),
-                            shortest_duration_ns: Some(first.deser_ns),
-                            shortest_run_number: first.run_number,
-                            shortest_run_items: first.run_items,
-                            longest_duration_ms: Some(last.deser_ms),
-                            longest_duration_ns: Some(last.deser_ns),
-                            longest_run_items: last.run_items,
-                            longest_run_number: last.run_number,
-                            average_duration_ms: self[middle].deser_ms,
-                            average_duration_ns: self[middle].deser_ns,
-                            average_duration_items: self[middle].run_items
-                        }
-                    }
-                    (_,_) => SpeedTestDurations {
-                        shortest_duration_ms: None,
-                        shortest_duration_ns: None,
-                        shortest_run_number: 0,
-                        shortest_run_items: 0,
-                        longest_duration_ms: None,
-                        longest_duration_ns: None,
-                        longest_run_number: 0,
-                        longest_run_items: 0,
-                        average_duration_ms: 0,
-                        average_duration_ns: 0,
-                        average_duration_items: 0
-                    }
-                }
-            }
-            StatType::AllSer => {
-                self.sort_by(|a, b| a.ser_ns.cmp(&b.ser_ns));
-                let first = self.first();
-                let last = self.last();
-                match (first, last) {
-                    (Some(first), Some(last)) => {
-                        SpeedTestDurations {
-                            shortest_duration_ms: Some(first.ser_ms),
-                            shortest_duration_ns: Some(first.ser_ns),
-                            shortest_run_number: first.run_number,
-                            shortest_run_items: first.run_items,
-                            longest_duration_ms: Some(last.ser_ms),
-                            longest_duration_ns: Some(last.ser_ns),
-                            longest_run_items: last.run_items,
-                            longest_run_number: last.run_number,
-                            average_duration_ms: self[middle].ser_ms,
-                            average_duration_ns: self[middle].ser_ns,
-                            average_duration_items: self[middle].run_items
-                        }
-                    }
-                    (_,_) => SpeedTestDurations {
-                        shortest_duration_ms: None,
-                        shortest_duration_ns: None,
-                        shortest_run_number: 0,
-                        shortest_run_items: 0,
-                        longest_duration_ms: None,
-                        longest_duration_ns: None,
-                        longest_run_number: 0,
-                        longest_run_items: 0,
-                        average_duration_ms: 0,
-                        average_duration_ns: 0,
-                        average_duration_items: 0
-                    }
-                }
-            }
-        };
-        duration
     }
 }
 

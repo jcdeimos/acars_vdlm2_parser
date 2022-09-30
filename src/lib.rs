@@ -213,7 +213,7 @@ impl AcarsVdlm2Message {
 ///
 /// This simplifies the handling of messaging by not needing to identify it first.
 /// It handles identification by looking at the provided data and seeing which format matches it best.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum AcarsVdlm2Message {
     Vdlm2Message(Vdlm2Message),
