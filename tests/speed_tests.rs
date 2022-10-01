@@ -1,6 +1,7 @@
 mod common;
 
 use std::error::Error;
+use std::mem::size_of_val;
 use std::sync::{Arc, Mutex, MutexGuard};
 use chrono::Utc;
 use rand::prelude::SliceRandom;
@@ -11,6 +12,7 @@ use crate::common::{combine_files_of_message_type, ContentDuplicator, StopwatchT
 use rayon::prelude::*;
 use serde_json::Value;
 use thousands::Separable;
+use byte_unit::Byte;
 
 #[test]
 #[ignore]
@@ -53,7 +55,9 @@ impl SpeedTest for i64 {
                 let mut rng: ThreadRng = thread_rng();
                 println!("{} => Duplicating content by {}", Utc::now(), self.separate_with_commas());
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
-                println!("{} => Content duplicated, queue contains {} messages", Utc::now(), test_message_queue.len().separate_with_commas());
+                let queue_memory_size: Byte = Byte::from_bytes(size_of_val(&*test_message_queue) as u128);
+                run_durations.queue_memory_size = queue_memory_size;
+                println!("{} => Content duplicated, queue contains {} messages ({})", Utc::now(), test_message_queue.len().separate_with_commas(), queue_memory_size.get_appropriate_unit(false).to_string());
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<AcarsVdlm2Message>>> = Arc::new(Mutex::new(Vec::new()));
                 println!("{} => Shuffling data order", Utc::now());
@@ -100,7 +104,9 @@ impl SpeedTest for i64 {
                 let mut rng: ThreadRng = thread_rng();
                 println!("{} => Duplicating content by {}", Utc::now(), self.separate_with_commas());
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
-                println!("{} => Content duplicated, queue contains {} messages", Utc::now(), test_message_queue.len().separate_with_commas());
+                let queue_memory_size: Byte = Byte::from_bytes(size_of_val(&*test_message_queue) as u128);
+                run_durations.queue_memory_size = queue_memory_size;
+                println!("{} => Content duplicated, queue contains {} messages ({})", Utc::now(), test_message_queue.len().separate_with_commas(), queue_memory_size.get_appropriate_unit(false).to_string());
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
                 println!("{} => Shuffling data order", Utc::now());

@@ -7,6 +7,7 @@ use std::fmt::Formatter;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::time::Duration;
+use byte_unit::Byte;
 use humantime::format_duration;
 use chrono::{DateTime, SecondsFormat, Utc};
 use glob::{glob, GlobResult, Paths, PatternError};
@@ -99,6 +100,7 @@ impl Stopwatch {
 #[derive(Debug, Clone, Default)]
 pub struct RunDurations {
     pub run_processed_items: usize,
+    pub queue_memory_size: Byte,
     pub large_queue_ser_ms: i64,
     pub large_queue_ser_ns: i64,
     pub large_queue_deser_ms: i64,
@@ -108,20 +110,11 @@ pub struct RunDurations {
     
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct TestRun {
-    pub run_number: i64,
-    pub run_items: usize,
-    pub deser_ms: i64,
-    pub deser_ns: i64,
-    pub ser_ms: i64,
-    pub ser_ns: i64
-}
-
 impl RunDurations {
     pub fn new() -> Self {
         Self {
             run_processed_items: usize::default(),
+            queue_memory_size: Default::default(),
             large_queue_ser_ms: i64::default(),
             large_queue_ser_ns: i64::default(),
             large_queue_deser_ms: i64::default(),
@@ -151,7 +144,14 @@ impl RunDurations {
         let test_one_duration: Duration = Duration::from_millis(self.total_run_ms as u64);
         result_table.add_row(row!["Run", Utc::now().to_rfc3339_opts(SecondsFormat::Secs, false)]);
         result_table.add_row(row!["Result", speed_test_type]);
-        result_table.add_row(row!["Processed items", self.run_processed_items.separate_with_commas()]);
+        result_table.add_row(row![
+            "Processed items",
+            format!(
+                "{} (Memory size {})",
+                self.run_processed_items.separate_with_commas(),
+                self.queue_memory_size.get_appropriate_unit(false).to_string()
+            )
+        ]);
         result_table.add_row(row![
             "Serialisation",
             format!("{}ms ({}ns)", self.large_queue_ser_ms, self.large_queue_ser_ns)
@@ -186,8 +186,16 @@ impl SpeedTestComparisons {
         comparison_table.add_row(row!["Result", self.test_one_type, self.test_two_type]);
         comparison_table.add_row(row![
             "Processed items",
-            test_one.run_processed_items.separate_with_commas(),
-            test_two.run_processed_items.separate_with_commas()
+            format!(
+                "{} (Memory size {})",
+                test_one.run_processed_items.separate_with_commas(),
+                test_one.queue_memory_size.get_appropriate_unit(false).to_string()
+            ),
+            format!(
+                "{} (Memory size {})",
+                test_two.run_processed_items.separate_with_commas(),
+                test_two.queue_memory_size.get_appropriate_unit(false).to_string()
+            ),
         ]);
         comparison_table.add_row(row![
             "Serialisation",
