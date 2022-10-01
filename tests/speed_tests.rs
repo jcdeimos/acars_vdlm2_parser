@@ -82,7 +82,7 @@ impl SpeedTest for i64 {
                 total_run_stopwatch.stop();
                 run_durations.update_run_durations(&serialisation_run_stopwatch);
                 run_durations.update_run_durations(&total_run_stopwatch);
-                println!("{} => Processing complete", Utc::now());
+                println!("{} => Processing complete, building output content", Utc::now());
                 Ok(run_durations)
             }
         }
@@ -129,7 +129,7 @@ impl SpeedTest for i64 {
                 total_run_stopwatch.stop();
                 run_durations.update_run_durations(&serialisation_run_stopwatch);
                 run_durations.update_run_durations(&total_run_stopwatch);
-                println!("{} => Processing complete", Utc::now());
+                println!("{} => Processing complete, building output content", Utc::now());
                 Ok(run_durations)
             }
         }
