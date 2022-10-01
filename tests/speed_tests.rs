@@ -8,7 +8,7 @@ use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
 use rand::thread_rng;
 use acars_vdlm2_parser::{AcarsVdlm2Message, DecodeMessage, MessageResult};
-use crate::common::{combine_files_of_message_type, ContentDuplicator, StopwatchType, MessageType, RunDurations, SpeedTestType, Stopwatch, test_enum_serialisation, test_value_serialisation, SpeedTestComparisons};
+use crate::common::{combine_files_of_message_type, ContentDuplicator, StopwatchType, MessageType, RunDurations, SpeedTestType, Stopwatch, test_enum_serialisation, test_value_serialisation, SpeedTestComparisons, SerialisationTarget};
 use rayon::prelude::*;
 use serde_json::Value;
 use thousands::Separable;
@@ -82,7 +82,7 @@ impl SpeedTest for i64 {
                 successfully_decoded_items_lock.shuffle(&mut rng);
                 let mut serialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueSer);
                 successfully_decoded_items_lock.par_iter().for_each(|message| {
-                    test_enum_serialisation(message);
+                    test_enum_serialisation(message, SerialisationTarget::Both);
                 });
                 serialisation_run_stopwatch.stop();
                 total_run_stopwatch.stop();
@@ -131,7 +131,7 @@ impl SpeedTest for i64 {
                 successfully_decoded_items_lock.shuffle(&mut rng);
                 let mut serialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueSer);
                 successfully_decoded_items_lock.par_iter().for_each(|message| {
-                    test_value_serialisation(message);
+                    test_value_serialisation(message, SerialisationTarget::Both);
                 });
                 serialisation_run_stopwatch.stop();
                 total_run_stopwatch.stop();

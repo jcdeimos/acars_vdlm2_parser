@@ -3,7 +3,7 @@ use rand::prelude::{SliceRandom, ThreadRng};
 use rand::thread_rng;
 use serde_json::Value;
 use acars_vdlm2_parser::{AcarsVdlm2Message, DecodeMessage, MessageResult};
-use crate::common::{combine_files_of_message_type, compare_errors, MessageType, test_enum_serialisation};
+use crate::common::{combine_files_of_message_type, compare_errors, MessageType, SerialisationTarget, test_enum_serialisation};
 
 mod common;
 
@@ -35,7 +35,7 @@ fn test_determining_message() -> Result<(), Box<dyn Error>> {
             }
             successfully_decoded_items.shuffle(&mut rng);
             for message in successfully_decoded_items {
-                test_enum_serialisation(&message);
+                test_enum_serialisation(&message, SerialisationTarget::Both);
             }
             for line in failed_decodes {
                 let library_parse_error: Option<serde_json::Error> =

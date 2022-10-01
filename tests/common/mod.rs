@@ -29,6 +29,12 @@ pub enum MessageType {
     All,
 }
 
+pub enum SerialisationTarget {
+    String,
+    Bytes,
+    Both
+}
+
 pub enum SpeedTestType {
     LargeQueueLibrary,
     LargeQueueValue
@@ -155,11 +161,21 @@ impl RunDurations {
         ]);
         result_table.add_row(row![
             "Serialisation",
-            format!("{}ms ({}ns)", self.large_queue_ser_ms, self.large_queue_ser_ns)
+            format!(
+                "{} ({}ms) ({}ns)",
+                format_duration(Duration::from_millis(self.large_queue_ser_ms as u64)).to_string(),
+                self.large_queue_ser_ms,
+                self.large_queue_ser_ns
+            )
         ]);
         result_table.add_row(row![
             "Deserialisation",
-            format!("{}ms ({}ns)",self.large_queue_deser_ms, self.large_queue_deser_ns)
+            format!(
+                "{} ({}ms) ({}ns)",
+                format_duration(Duration::from_millis(self.large_queue_deser_ms as u64)).to_string(),
+                self.large_queue_deser_ms,
+                self.large_queue_deser_ns
+            )
         ]);
         result_table.add_row(row![
             "Total Runtime",
@@ -204,13 +220,33 @@ impl SpeedTestComparisons {
         ]);
         comparison_table.add_row(row![
             "Serialisation",
-            format!("{}ms ({}ns)", test_one.large_queue_ser_ms, test_one.large_queue_ser_ns),
-            format!("{}ms ({}ns)", test_two.large_queue_ser_ms, test_two.large_queue_ser_ns)
+            format!(
+                "{} ({}ms) ({}ns)",
+                format_duration(Duration::from_millis(test_one.large_queue_ser_ms as u64)).to_string(),
+                test_one.large_queue_ser_ms,
+                test_one.large_queue_ser_ns
+            ),
+            format!(
+                "{} ({}ms) ({}ns)",
+                format_duration(Duration::from_millis(test_two.large_queue_ser_ms as u64)).to_string(),
+                test_two.large_queue_ser_ms,
+                test_two.large_queue_ser_ns
+            )
         ]);
         comparison_table.add_row(row![
             "Deserialisation",
-            format!("{}ms ({}ns)",test_one.large_queue_deser_ms, test_one.large_queue_deser_ns),
-            format!("{}ms ({}ns)",test_two.large_queue_deser_ms, test_two.large_queue_deser_ns)
+            format!(
+                "{} ({}ms) ({}ns)",
+                format_duration(Duration::from_millis(test_one.large_queue_deser_ms as u64)).to_string(),
+                test_one.large_queue_deser_ms,
+                test_one.large_queue_deser_ns
+            ),
+            format!(
+                "{} ({}ms) ({}ns)",
+                format_duration(Duration::from_millis(test_two.large_queue_deser_ms as u64)).to_string(),
+                test_two.large_queue_deser_ms,
+                test_two.large_queue_deser_ns
+            )
         ]);
         comparison_table.add_row(row![
             "Total Runtime",
@@ -450,42 +486,90 @@ pub fn compare_errors(
     }
 }
 
-pub fn test_enum_serialisation(message: &AcarsVdlm2Message) {
-    let encoded_string: MessageResult<String> = message.to_string();
-    assert_eq!(
-        encoded_string.as_ref().err().is_none(),
-        true,
-        "Parsing data {:?} to String failed: {:?}",
-        message,
-        encoded_string.as_ref().err()
-    );
-    let encoded_bytes: MessageResult<Vec<u8>> = message.to_bytes();
-    assert_eq!(
-        encoded_bytes.as_ref().err().is_none(),
-        true,
-        "Parsing data {:?} to bytes failed: {:?}",
-        message,
-        encoded_bytes.as_ref().err()
-    );
+pub fn test_enum_serialisation(message: &AcarsVdlm2Message, serialisation_target: SerialisationTarget) {
+    match serialisation_target {
+        SerialisationTarget::String => {
+            let encoded_string: MessageResult<String> = message.to_string();
+            assert_eq!(
+                encoded_string.as_ref().err().is_none(),
+                true,
+                "Parsing data {:?} to String failed: {:?}",
+                message,
+                encoded_string.as_ref().err()
+            );
+        }
+        SerialisationTarget::Bytes => {
+            let encoded_bytes: MessageResult<Vec<u8>> = message.to_bytes();
+            assert_eq!(
+                encoded_bytes.as_ref().err().is_none(),
+                true,
+                "Parsing data {:?} to bytes failed: {:?}",
+                message,
+                encoded_bytes.as_ref().err()
+            );
+        }
+        SerialisationTarget::Both => {
+            let encoded_string: MessageResult<String> = message.to_string();
+            assert_eq!(
+                encoded_string.as_ref().err().is_none(),
+                true,
+                "Parsing data {:?} to String failed: {:?}",
+                message,
+                encoded_string.as_ref().err()
+            );
+            let encoded_bytes: MessageResult<Vec<u8>> = message.to_bytes();
+            assert_eq!(
+                encoded_bytes.as_ref().err().is_none(),
+                true,
+                "Parsing data {:?} to bytes failed: {:?}",
+                message,
+                encoded_bytes.as_ref().err()
+            );
+        }
+    }
 }
 
-pub fn test_value_serialisation(message: &Value) {
-    let encoded_string: MessageResult<String> = serde_json::to_string(&message);
-    assert_eq!(
-        encoded_string.as_ref().err().is_none(),
-        true,
-        "Parsing data {:?} to String failed: {:?}",
-        message,
-        encoded_string.as_ref().err()
-    );
-    let encoded_bytes: MessageResult<Vec<u8>> = serde_json::to_vec(&message);
-    assert_eq!(
-        encoded_bytes.as_ref().err().is_none(),
-        true,
-        "Parsing data {:?} to bytes failed: {:?}",
-        message,
-        encoded_bytes.as_ref().err()
-    );
+pub fn test_value_serialisation(message: &Value, serialisation_target: SerialisationTarget) {
+    match serialisation_target {
+        SerialisationTarget::String => {
+            let encoded_string: MessageResult<String> = serde_json::to_string(&message);
+            assert_eq!(
+                encoded_string.as_ref().err().is_none(),
+                true,
+                "Parsing data {:?} to String failed: {:?}",
+                message,
+                encoded_string.as_ref().err()
+            );
+        }
+        SerialisationTarget::Bytes => {
+            let encoded_bytes: MessageResult<Vec<u8>> = serde_json::to_vec(&message);
+            assert_eq!(
+                encoded_bytes.as_ref().err().is_none(),
+                true,
+                "Parsing data {:?} to bytes failed: {:?}",
+                message,
+                encoded_bytes.as_ref().err()
+            );
+        }
+        SerialisationTarget::Both => {
+            let encoded_string: MessageResult<String> = serde_json::to_string(&message);
+            assert_eq!(
+                encoded_string.as_ref().err().is_none(),
+                true,
+                "Parsing data {:?} to String failed: {:?}",
+                message,
+                encoded_string.as_ref().err()
+            );
+            let encoded_bytes: MessageResult<Vec<u8>> = serde_json::to_vec(&message);
+            assert_eq!(
+                encoded_bytes.as_ref().err().is_none(),
+                true,
+                "Parsing data {:?} to bytes failed: {:?}",
+                message,
+                encoded_bytes.as_ref().err()
+            );
+        }
+    }
 }
 
 pub trait ContentDuplicator {
