@@ -17,6 +17,7 @@ use byte_unit::Byte;
 #[test]
 #[ignore]
 fn test_speed_large_queue() {
+    1.large_queue_library().large_queue_comparison(1.large_queue_value());
     1_000.large_queue_library().large_queue_comparison(1_000.large_queue_value());
     2_500.large_queue_library().large_queue_comparison(2_500.large_queue_value());
     5_000.large_queue_library().large_queue_comparison(5_000.large_queue_value());
@@ -26,6 +27,7 @@ fn test_speed_large_queue() {
 #[test]
 #[ignore]
 fn test_library_speed() {
+    1.large_queue_library().large_queue_duration(SpeedTestType::LargeQueueLibrary);
     1_000.large_queue_library().large_queue_duration(SpeedTestType::LargeQueueLibrary);
     2_500.large_queue_library().large_queue_duration(SpeedTestType::LargeQueueLibrary);
     5_000.large_queue_library().large_queue_duration(SpeedTestType::LargeQueueLibrary);
@@ -100,7 +102,7 @@ impl SpeedTest for i64 {
             Err(load_error) => Err(load_error),
             Ok(all_messages) => {
                 let mut run_durations: RunDurations = RunDurations::new();
-                println!("{} => Loaded data successfully", Utc::now());
+                println!("{} => Loaded data successfully, retrieved {} items", Utc::now(), all_messages.len());
                 let mut rng: ThreadRng = thread_rng();
                 println!("{} => Duplicating content by {}", Utc::now(), self.separate_with_commas());
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);

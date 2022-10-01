@@ -11,7 +11,8 @@ use byte_unit::Byte;
 use humantime::format_duration;
 use chrono::{DateTime, SecondsFormat, Utc};
 use glob::{glob, GlobResult, Paths, PatternError};
-use prettytable::{row, Table};
+use prettytable::{Cell, row, Row, Table};
+use prettytable::format::Alignment;
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -182,7 +183,11 @@ impl SpeedTestComparisons {
         let test_two: RunDurations = self.test_two_results;
         let test_one_duration = Duration::from_millis(*&test_one.total_run_ms as u64);
         let test_two_duration = Duration::from_millis(*&test_two.total_run_ms as u64);
-        comparison_table.add_row(row!["Run", Utc::now().to_rfc3339_opts(SecondsFormat::Secs, false)]);
+        let mut date_cell: Cell = Cell::new(&Utc::now().to_rfc3339_opts(SecondsFormat::Secs, false)).with_hspan(2);
+        date_cell.align(Alignment::CENTER);
+        let cells: Vec<Cell> = vec![Cell::new("Run"), date_cell];
+        let header_row: Row = Row::new(cells);
+        comparison_table.add_row(header_row);
         comparison_table.add_row(row!["Result", self.test_one_type, self.test_two_type]);
         comparison_table.add_row(row![
             "Processed items",
