@@ -2,6 +2,7 @@ mod common;
 
 use std::error::Error;
 use std::sync::{Arc, Mutex, MutexGuard};
+use chrono::Utc;
 use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
 use rand::thread_rng;
@@ -18,9 +19,6 @@ fn test_speed_large_queue() {
     large_queue_results(5_000.large_queue_library(), 5_000.large_queue_value());
     large_queue_results(7_500.large_queue_library(), 7_500.large_queue_value());
     large_queue_results(10_000.large_queue_library(), 10_000.large_queue_value());
-    large_queue_results(20_000.large_queue_library(), 20_000.large_queue_value());
-    large_queue_results(50_000.large_queue_library(), 50_000.large_queue_value());
-    large_queue_results(75_000.large_queue_library(), 75_000.large_queue_value());
 }
 
 /// Trait for performing speed tests.
@@ -29,26 +27,23 @@ pub(crate) trait SpeedTest {
     fn large_queue_value(&self) -> Result<RunDurations, Box<dyn Error>>;
 }
 
-/// `SpeedTest` implemented for `i64`
-///
-/// Run x iterations, invoked as `int.iterating_rounds_library()`
 impl SpeedTest for i64 {
     fn large_queue_library(&self) -> Result<RunDurations, Box<dyn Error>> {
-        println!("Starting a speed test of large queue processing using the library");
-        println!("Base factor is {}", self);
+        println!("\n{} => Starting a speed test of large queue processing using the library", Utc::now());
+        println!("{} => Base factor is {}", Utc::now(), self);
         let load_all_messages: Result<Vec<String>, Box<dyn Error>> =
             combine_files_of_message_type(MessageType::All);
         match load_all_messages {
             Err(load_error) => Err(load_error),
             Ok(all_messages) => {
                 let mut run_durations: RunDurations = RunDurations::new();
-                println!("Loaded data successfully");
+                println!("{} => Loaded data successfully", Utc::now());
                 let mut rng: ThreadRng = thread_rng();
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
-                println!("Processing {} messages in a queue", test_message_queue.len());
+                println!("{} => Processing {} messages in a queue", Utc::now(), test_message_queue.len());
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<AcarsVdlm2Message>>> = Arc::new(Mutex::new(Vec::new()));
-                println!("Running tests");
+                println!("{} => Running tests", Utc::now());
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
                 test_message_queue.shuffle(&mut rng);
                 let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueDeser);
@@ -73,29 +68,28 @@ impl SpeedTest for i64 {
                 total_run_stopwatch.stop();
                 run_durations.update_run_durations(&serialisation_run_stopwatch);
                 run_durations.update_run_durations(&total_run_stopwatch);
-                println!("Speed test completed, storing results");
-                
+                println!("{} => Speed test completed, storing results", Utc::now());
                 Ok(run_durations)
             }
         }
     }
     
     fn large_queue_value(&self) -> Result<RunDurations, Box<dyn Error>> {
-        println!("Starting a speed test of large queue processing using serde Value");
-        println!("Base factor is {}", self);
+        println!("{} => Starting a speed test of large queue processing using serde Value", Utc::now());
+        println!("{} => Base factor is {}", Utc::now(), self);
         let load_all_messages: Result<Vec<String>, Box<dyn Error>> =
             combine_files_of_message_type(MessageType::All);
         match load_all_messages {
             Err(load_error) => Err(load_error),
             Ok(all_messages) => {
                 let mut run_durations: RunDurations = RunDurations::new();
-                println!("Loaded data successfully");
+                println!("{} => Loaded data successfully", Utc::now());
                 let mut rng: ThreadRng = thread_rng();
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
-                println!("Processing {} messages in a queue", test_message_queue.len());
+                println!("{} => Processing {} messages in a queue", Utc::now(), test_message_queue.len());
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
-                println!("Running tests");
+                println!("{} => Running tests", Utc::now());
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
                 test_message_queue.shuffle(&mut rng);
                 let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueDeser);
@@ -120,8 +114,7 @@ impl SpeedTest for i64 {
                 total_run_stopwatch.stop();
                 run_durations.update_run_durations(&serialisation_run_stopwatch);
                 run_durations.update_run_durations(&total_run_stopwatch);
-                println!("Speed test completed, storing results");
-            
+                println!("{} => Speed test completed, storing results", Utc::now());
                 Ok(run_durations)
             }
         }
