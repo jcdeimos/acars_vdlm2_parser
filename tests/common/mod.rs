@@ -15,6 +15,7 @@ use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde_json::Value;
+use thousands::Separable;
 use acars_vdlm2_parser::{AcarsVdlm2Message, MessageResult};
 use acars_vdlm2_parser::acars::{AcarsMessage, NewAcarsMessage};
 use acars_vdlm2_parser::vdlm2::{NewVdlm2Message, Vdlm2Message};
@@ -150,7 +151,7 @@ impl RunDurations {
         let test_one_duration: Duration = Duration::from_millis(self.total_run_ms as u64);
         result_table.add_row(row!["Run", Utc::now().to_rfc3339_opts(SecondsFormat::Secs, false)]);
         result_table.add_row(row!["Result", speed_test_type]);
-        result_table.add_row(row!["Processed items", self.run_processed_items]);
+        result_table.add_row(row!["Processed items", self.run_processed_items.separate_with_commas()]);
         result_table.add_row(row![
             "Serialisation",
             format!("{}ms ({}ns)", self.large_queue_ser_ms, self.large_queue_ser_ns)
@@ -183,7 +184,11 @@ impl SpeedTestComparisons {
         let test_two_duration = Duration::from_millis(*&test_two.total_run_ms as u64);
         comparison_table.add_row(row!["Run", Utc::now().to_rfc3339_opts(SecondsFormat::Secs, false)]);
         comparison_table.add_row(row!["Result", self.test_one_type, self.test_two_type]);
-        comparison_table.add_row(row!["Processed items", test_one.run_processed_items, test_two.run_processed_items]);
+        comparison_table.add_row(row![
+            "Processed items",
+            test_one.run_processed_items.separate_with_commas(),
+            test_two.run_processed_items.separate_with_commas()
+        ]);
         comparison_table.add_row(row![
             "Serialisation",
             format!("{}ms ({}ns)", test_one.large_queue_ser_ms, test_one.large_queue_ser_ns),

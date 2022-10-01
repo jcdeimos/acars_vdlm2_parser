@@ -10,6 +10,7 @@ use acars_vdlm2_parser::{AcarsVdlm2Message, DecodeMessage, MessageResult};
 use crate::common::{combine_files_of_message_type, ContentDuplicator, StopwatchType, MessageType, RunDurations, SpeedTestType, Stopwatch, test_enum_serialisation, test_value_serialisation, SpeedTestComparisons};
 use rayon::prelude::*;
 use serde_json::Value;
+use thousands::Separable;
 
 #[test]
 #[ignore]
@@ -50,9 +51,9 @@ impl SpeedTest for i64 {
                 let mut run_durations: RunDurations = RunDurations::new();
                 println!("{} => Loaded data successfully", Utc::now());
                 let mut rng: ThreadRng = thread_rng();
-                println!("{} => Duplicating content by {}", Utc::now(), self);
+                println!("{} => Duplicating content by {}", Utc::now(), self.separate_with_commas());
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
-                println!("{} => Content duplicated, queue contains {} messages", Utc::now(), test_message_queue.len());
+                println!("{} => Content duplicated, queue contains {} messages", Utc::now(), test_message_queue.len().separate_with_commas());
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<AcarsVdlm2Message>>> = Arc::new(Mutex::new(Vec::new()));
                 println!("{} => Shuffling data order", Utc::now());
@@ -89,7 +90,6 @@ impl SpeedTest for i64 {
     
     fn large_queue_value(&self) -> Result<RunDurations, Box<dyn Error>> {
         println!("{} => Starting a queue processing speed test using serde Value", Utc::now());
-        println!("{} => Base factor is {}", Utc::now(), self);
         let load_all_messages: Result<Vec<String>, Box<dyn Error>> =
             combine_files_of_message_type(MessageType::All);
         match load_all_messages {
@@ -98,9 +98,9 @@ impl SpeedTest for i64 {
                 let mut run_durations: RunDurations = RunDurations::new();
                 println!("{} => Loaded data successfully", Utc::now());
                 let mut rng: ThreadRng = thread_rng();
-                println!("{} => Duplicating content by {}", Utc::now(), self);
+                println!("{} => Duplicating content by {}", Utc::now(), self.separate_with_commas());
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
-                println!("{} => Content duplicated, queue contains {} messages", Utc::now(), test_message_queue.len());
+                println!("{} => Content duplicated, queue contains {} messages", Utc::now(), test_message_queue.len().separate_with_commas());
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
                 println!("{} => Shuffling data order", Utc::now());
