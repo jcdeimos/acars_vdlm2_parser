@@ -145,6 +145,25 @@ impl RunDurations {
             }
         }
     }
+    pub fn display_run_duration(self, speed_test_type: SpeedTestType) {
+        let mut result_table: Table = Table::new();
+        let test_one_duration: Duration = Duration::from_millis(self.total_run_ms as u64);
+        result_table.add_row(row!["Result", speed_test_type]);
+        result_table.add_row(row!["Processed items", self.run_processed_items]);
+        result_table.add_row(row![
+            "Serialisation",
+            format!("{}ms ({}ns)", self.large_queue_ser_ms, self.large_queue_ser_ns)
+        ]);
+        result_table.add_row(row![
+            "Deserialisation",
+            format!("{}ms ({}ns)",self.large_queue_deser_ms, self.large_queue_deser_ns)
+        ]);
+        result_table.add_row(row![
+            "Total Runtime",
+            format!("{} ({}ms) ({}ns)", format_duration(test_one_duration).to_string(), self.total_run_ms, self.total_run_ns)
+        ]);
+        result_table.printstd();
+    }
 }
 
 pub struct SpeedTestComparisons {
