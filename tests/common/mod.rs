@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::time::Duration;
 use humantime::format_duration;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, SecondsFormat, Utc};
 use glob::{glob, GlobResult, Paths, PatternError};
 use prettytable::{row, Table};
 use rand::rngs::ThreadRng;
@@ -148,6 +148,7 @@ impl RunDurations {
     pub fn display_run_duration(self, speed_test_type: SpeedTestType) {
         let mut result_table: Table = Table::new();
         let test_one_duration: Duration = Duration::from_millis(self.total_run_ms as u64);
+        result_table.add_row(row!["Run", Utc::now().to_rfc3339_opts(SecondsFormat::Secs, false)]);
         result_table.add_row(row!["Result", speed_test_type]);
         result_table.add_row(row!["Processed items", self.run_processed_items]);
         result_table.add_row(row![
@@ -180,6 +181,7 @@ impl SpeedTestComparisons {
         let test_two: RunDurations = self.test_two_results;
         let test_one_duration = Duration::from_millis(*&test_one.total_run_ms as u64);
         let test_two_duration = Duration::from_millis(*&test_two.total_run_ms as u64);
+        comparison_table.add_row(row!["Run", Utc::now().to_rfc3339_opts(SecondsFormat::Secs, false)]);
         comparison_table.add_row(row!["Result", self.test_one_type, self.test_two_type]);
         comparison_table.add_row(row!["Processed items", test_one.run_processed_items, test_two.run_processed_items]);
         comparison_table.add_row(row![

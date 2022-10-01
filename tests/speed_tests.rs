@@ -41,8 +41,7 @@ pub(crate) trait SpeedTest {
 
 impl SpeedTest for i64 {
     fn large_queue_library(&self) -> Result<RunDurations, Box<dyn Error>> {
-        println!("\n{} => Starting a speed test of large queue processing using the library", Utc::now());
-        println!("{} => Base factor is {}", Utc::now(), self);
+        println!("\n{} => Starting a queue processing speed test using the library", Utc::now());
         let load_all_messages: Result<Vec<String>, Box<dyn Error>> =
             combine_files_of_message_type(MessageType::All);
         match load_all_messages {
@@ -66,7 +65,7 @@ impl SpeedTest for i64 {
                     match parsed_message {
                         Err(_) => {}
                         Ok(decoded_message) => {
-                            successfully_decoded_items.lock().unwrap().push(decoded_message.clone());
+                            successfully_decoded_items.lock().unwrap().push(decoded_message);
                         }
                     }
                 });
@@ -89,7 +88,7 @@ impl SpeedTest for i64 {
     }
     
     fn large_queue_value(&self) -> Result<RunDurations, Box<dyn Error>> {
-        println!("{} => Starting a speed test of large queue processing using serde Value", Utc::now());
+        println!("{} => Starting a queue processing speed test using serde Value", Utc::now());
         println!("{} => Base factor is {}", Utc::now(), self);
         let load_all_messages: Result<Vec<String>, Box<dyn Error>> =
             combine_files_of_message_type(MessageType::All);
@@ -114,7 +113,7 @@ impl SpeedTest for i64 {
                     match parsed_message {
                         Err(_) => {}
                         Ok(decoded_message) => {
-                            successfully_decoded_items.lock().unwrap().push(decoded_message.clone());
+                            successfully_decoded_items.lock().unwrap().push(decoded_message);
                         }
                     }
                 });
