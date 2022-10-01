@@ -29,9 +29,8 @@ fn test_library_speed() {
     7_500.large_queue_library().large_queue_duration(SpeedTestType::LargeQueueLibrary);
     10_000.large_queue_library().large_queue_duration(SpeedTestType::LargeQueueLibrary);
     20_000.large_queue_library().large_queue_duration(SpeedTestType::LargeQueueLibrary);
-    50_000.large_queue_library().large_queue_duration(SpeedTestType::LargeQueueLibrary);
-    75_000.large_queue_library().large_queue_duration(SpeedTestType::LargeQueueLibrary);
-    100_000.large_queue_library().large_queue_duration(SpeedTestType::LargeQueueLibrary);
+    30_000.large_queue_library().large_queue_duration(SpeedTestType::LargeQueueLibrary);
+    40_000.large_queue_library().large_queue_duration(SpeedTestType::LargeQueueLibrary);
 }
 
 /// Trait for performing speed tests.
@@ -52,13 +51,15 @@ impl SpeedTest for i64 {
                 let mut run_durations: RunDurations = RunDurations::new();
                 println!("{} => Loaded data successfully", Utc::now());
                 let mut rng: ThreadRng = thread_rng();
+                println!("{} => Duplicating content by {}", Utc::now(), self);
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
-                println!("{} => Processing {} messages in a queue", Utc::now(), test_message_queue.len());
+                println!("{} => Content duplicated, queue contains {} messages", Utc::now(), test_message_queue.len());
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<AcarsVdlm2Message>>> = Arc::new(Mutex::new(Vec::new()));
-                println!("{} => Running test", Utc::now());
-                let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
+                println!("{} => Shuffling data order", Utc::now());
                 test_message_queue.shuffle(&mut rng);
+                println!("{} => Shuffling done, starting to process data", Utc::now());
+                let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
                 let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueDeser);
                 test_message_queue.par_iter().for_each(|entry| {
                     let parsed_message: MessageResult<AcarsVdlm2Message> = entry.decode_message();
@@ -81,7 +82,7 @@ impl SpeedTest for i64 {
                 total_run_stopwatch.stop();
                 run_durations.update_run_durations(&serialisation_run_stopwatch);
                 run_durations.update_run_durations(&total_run_stopwatch);
-                println!("{} => Speed test completed, storing results", Utc::now());
+                println!("{} => Processing complete", Utc::now());
                 Ok(run_durations)
             }
         }
@@ -98,13 +99,15 @@ impl SpeedTest for i64 {
                 let mut run_durations: RunDurations = RunDurations::new();
                 println!("{} => Loaded data successfully", Utc::now());
                 let mut rng: ThreadRng = thread_rng();
+                println!("{} => Duplicating content by {}", Utc::now(), self);
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
-                println!("{} => Processing {} messages in a queue", Utc::now(), test_message_queue.len());
+                println!("{} => Content duplicated, queue contains {} messages", Utc::now(), test_message_queue.len());
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
-                println!("{} => Running test", Utc::now());
-                let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
+                println!("{} => Shuffling data order", Utc::now());
                 test_message_queue.shuffle(&mut rng);
+                println!("{} => Shuffling done, starting to process data", Utc::now());
+                let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
                 let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueDeser);
                 test_message_queue.par_iter().for_each(|entry| {
                     let parsed_message: MessageResult<Value> = serde_json::from_str(&entry);
@@ -127,7 +130,7 @@ impl SpeedTest for i64 {
                 total_run_stopwatch.stop();
                 run_durations.update_run_durations(&serialisation_run_stopwatch);
                 run_durations.update_run_durations(&total_run_stopwatch);
-                println!("{} => Speed test completed, storing results", Utc::now());
+                println!("{} => Processing complete", Utc::now());
                 Ok(run_durations)
             }
         }
