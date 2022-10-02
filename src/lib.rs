@@ -1,5 +1,6 @@
 extern crate serde;
 extern crate serde_json;
+#[macro_use] extern crate log;
 
 use crate::acars::AcarsMessage;
 use crate::vdlm2::Vdlm2Message;
@@ -239,7 +240,7 @@ impl AppDetails {
     /// Creates a new instance of `AppDetails` with the provided details.
     /// ```
     /// use acars_vdlm2_parser::AppDetails;
-    /// let manual: AppDetails = AppDetails { name: "".to_string(), ver: "".to_string(),proxied: Some(true), proxied_by: Some("test".to_string()), acars_router_version: Some("1.0.4".to_string()) };
+    /// let manual: AppDetails = AppDetails { name: "".to_string(), ver: "".to_string(), proxied: Some(true), proxied_by: Some("test".to_string()), acars_router_version: Some("1.0.4".to_string()) };
     /// let generated: AppDetails = AppDetails::new("test", "1.0.4");
     /// assert_eq!(manual, generated);
     /// ```
@@ -251,5 +252,39 @@ impl AppDetails {
             proxied_by: Some(proxied_by.to_string()),
             acars_router_version: Some(acars_router_version.to_string()),
         }
+    }
+    /// Updates an existing entry of `AppDetails` with the provided details.
+    /// ```
+    /// use acars_vdlm2_parser::AppDetails;
+    /// let manual_vdlm2: AppDetails = AppDetails { name: "dumpvdl2".to_string(), ver: "2.2.0".to_string(), proxied: Some(true), proxied_by: Some("acars_router".to_string()), acars_router_version: Some("1.0.12".to_string()) };
+    /// let mut vdlm2: AppDetails = AppDetails { name: "dumpvdl2".to_string(), ver: "2.2.0".to_string(), proxied: None, proxied_by: None, acars_router_version: None };
+    /// let manual_acars: AppDetails = AppDetails { name: "acarsdec". to_string(), ver: "3.7".to_string(), proxied: Some(true), proxied_by: Some("acars_router".to_string()), acars_router_version: Some("1.0.12".to_string()) };
+    /// let mut acars: AppDetails = AppDetails { name: "acarsdec". to_string(), ver: "3.7".to_string(), proxied: None, proxied_by: None, acars_router_version: None };
+    /// vdlm2.proxy("acars_router", "1.0.12");
+    /// acars.proxy("acars_router", "1.0.12");
+    /// assert_eq!(vdlm2, manual_vdlm2);
+    /// assert_eq!(acars, manual_acars);
+    /// ```
+    pub fn proxy(&mut self, proxied_by: &str, acars_router_version: &str) {
+        self.proxied = Some(true);
+        self.proxied_by = Some(proxied_by.to_string());
+        self.acars_router_version = Some(acars_router_version.to_string());
+    }
+    /// Removes the proxy information from an existing `AppDetails`.
+    /// ```
+    /// use acars_vdlm2_parser::AppDetails;
+    /// let mut vdlm2: AppDetails = AppDetails { name: "dumpvdl2".to_string(), ver: "2.2.0".to_string(), proxied: Some(true), proxied_by: Some("acars_router".to_string()), acars_router_version: Some("1.0.12".to_string()) };
+    /// let manual_vdlm2: AppDetails = AppDetails { name: "dumpvdl2".to_string(), ver: "2.2.0".to_string(), proxied: None, proxied_by: None, acars_router_version: None };
+    /// let mut acars: AppDetails = AppDetails { name: "acarsdec". to_string(), ver: "3.7".to_string(), proxied: Some(true), proxied_by: Some("acars_router".to_string()), acars_router_version: Some("1.0.12".to_string()) };
+    /// let manual_acars: AppDetails = AppDetails { name: "acarsdec". to_string(), ver: "3.7".to_string(), proxied: None, proxied_by: None, acars_router_version: None };
+    /// vdlm2.remove_proxy();
+    /// acars.remove_proxy();
+    /// assert_eq!(vdlm2, manual_vdlm2);
+    /// assert_eq!(acars, manual_acars);
+    /// ```
+    pub fn remove_proxy(&mut self) {
+        self.proxied = None;
+        self.proxied_by = None;
+        self.acars_router_version = None;
     }
 }

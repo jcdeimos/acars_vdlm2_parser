@@ -79,14 +79,24 @@ impl AcarsMessage {
 
     /// Clears any proxy details that may be set for `AcarsMessage`.
     pub fn clear_proxy_details(&mut self) {
-        self.app = None;
+        match self.app.as_mut() {
+            None => warn!("Attempted to remove proxy details but there isn't an app block, nothing to do"),
+            Some(app_details) => app_details.remove_proxy()
+        }
     }
 
     /// Sets proxy details to the provided details and sets `proxied` to true.
     ///
-    /// This invokes `AppDetails::new()` for `AcarsMessage` and updates the record.
+    /// This invokes `AppDetails::new()` for `AcarsMessage` if there is no app block.
+    /// This invokes `AppDetails::proxy()` for `AcarsMessage` if there is an app block to add proxy details.
     pub fn set_proxy_details(&mut self, proxied_by: &str, acars_router_version: &str) {
-        self.app = Some(AppDetails::new(proxied_by, acars_router_version));
+        match self.app.as_mut() {
+            None => {
+                warn!("Message has no app block, inserting a place holder");
+                self.app = Some(AppDetails::new(proxied_by, acars_router_version));
+            },
+            Some(app_details) => app_details.proxy(proxied_by, acars_router_version)
+        }
     }
 
     pub fn clear_time(&mut self) {

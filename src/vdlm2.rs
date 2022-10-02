@@ -83,14 +83,24 @@ impl Vdlm2Message {
 
     /// Clears any proxy details that may be set for `Vdlm2Message`.
     pub fn clear_proxy_details(&mut self) {
-        self.vdl2.app = None;
+        match self.vdl2.app.as_mut() {
+            None => warn!("Attempted to remove proxy details but there isn't an app block, nothing to do"),
+            Some(app_details) => app_details.remove_proxy()
+        }
     }
 
     /// Sets proxy details to the provided details and sets `proxied` to true.
     ///
-    /// This invokes `AppDetails::new()` for `Vdlm2Message` and updates the record.
+    /// This invokes `AppDetails::new()` for `Vdlm2Message` if there is no app block.
+    /// This invokes `AppDetails::proxy()` for `Vdlm2Message` if there is an app block to add proxy details.
     pub fn set_proxy_details(&mut self, proxied_by: &str, acars_router_version: &str) {
-        self.vdl2.app = Some(AppDetails::new(proxied_by, acars_router_version));
+        match self.vdl2.app.as_mut() {
+            None => {
+                warn!("Message has no app block, inserting a place holder");
+                self.vdl2.app = Some(AppDetails::new(proxied_by, acars_router_version));
+            },
+            Some(app_details) => app_details.proxy(proxied_by, acars_router_version)
+        }
     }
 
     pub fn clear_time(&mut self) {
