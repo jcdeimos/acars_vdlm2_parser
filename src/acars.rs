@@ -169,7 +169,7 @@ pub enum LevelType {
     Float64(f64)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(untagged)]
 pub enum AckType {
     String(String),

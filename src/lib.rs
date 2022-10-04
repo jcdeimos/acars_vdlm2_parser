@@ -214,7 +214,8 @@ impl AcarsVdlm2Message {
 ///
 /// This simplifies the handling of messaging by not needing to identify it first.
 /// It handles identification by looking at the provided data and seeing which format matches it best.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[allow(clippy::large_enum_variant)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum AcarsVdlm2Message {
     Vdlm2Message(Vdlm2Message),
@@ -224,7 +225,7 @@ pub enum AcarsVdlm2Message {
 /// This struct lives here because it is used by both `Vdlm2Message` and `AcarsMessage`.
 ///
 /// This does not normally exist on `AcarsMessage` and has been added as part of the implementation for the acars_router project.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct AppDetails {
     pub name: String,
     pub ver: String,

@@ -156,14 +156,14 @@ impl RunDurations {
             format!(
                 "{} (Memory size {})",
                 self.run_processed_items.separate_with_commas(),
-                self.queue_memory_size.get_appropriate_unit(false).to_string()
+                self.queue_memory_size.get_appropriate_unit(false)
             )
         ]);
         result_table.add_row(row![
             "Serialisation",
             format!(
                 "{} ({}ms) ({}ns)",
-                format_duration(Duration::from_millis(self.large_queue_ser_ms as u64)).to_string(),
+                format_duration(Duration::from_millis(self.large_queue_ser_ms as u64)),
                 self.large_queue_ser_ms,
                 self.large_queue_ser_ns
             )
@@ -172,14 +172,14 @@ impl RunDurations {
             "Deserialisation",
             format!(
                 "{} ({}ms) ({}ns)",
-                format_duration(Duration::from_millis(self.large_queue_deser_ms as u64)).to_string(),
+                format_duration(Duration::from_millis(self.large_queue_deser_ms as u64)),
                 self.large_queue_deser_ms,
                 self.large_queue_deser_ns
             )
         ]);
         result_table.add_row(row![
             "Total Runtime",
-            format!("{} ({}ms) ({}ns)", format_duration(test_one_duration).to_string(), self.total_run_ms, self.total_run_ns)
+            format!("{} ({}ms) ({}ns)", format_duration(test_one_duration), self.total_run_ms, self.total_run_ns)
         ]);
         result_table.printstd();
     }
@@ -197,8 +197,8 @@ impl SpeedTestComparisons {
         let mut comparison_table: Table = Table::new();
         let test_one: RunDurations = self.test_one_results;
         let test_two: RunDurations = self.test_two_results;
-        let test_one_duration = Duration::from_millis(*&test_one.total_run_ms as u64);
-        let test_two_duration = Duration::from_millis(*&test_two.total_run_ms as u64);
+        let test_one_duration = Duration::from_millis(test_one.total_run_ms as u64);
+        let test_two_duration = Duration::from_millis(test_two.total_run_ms as u64);
         let mut date_cell: Cell = Cell::new(&Utc::now().to_rfc3339_opts(SecondsFormat::Secs, false)).with_hspan(2);
         date_cell.align(Alignment::CENTER);
         let cells: Vec<Cell> = vec![Cell::new("Run"), date_cell];
@@ -210,25 +210,25 @@ impl SpeedTestComparisons {
             format!(
                 "{} (Memory size {})",
                 test_one.run_processed_items.separate_with_commas(),
-                test_one.queue_memory_size.get_appropriate_unit(false).to_string()
+                test_one.queue_memory_size.get_appropriate_unit(false)
             ),
             format!(
                 "{} (Memory size {})",
                 test_two.run_processed_items.separate_with_commas(),
-                test_two.queue_memory_size.get_appropriate_unit(false).to_string()
+                test_two.queue_memory_size.get_appropriate_unit(false)
             ),
         ]);
         comparison_table.add_row(row![
             "Serialisation",
             format!(
                 "{} ({}ms) ({}ns)",
-                format_duration(Duration::from_millis(test_one.large_queue_ser_ms as u64)).to_string(),
+                format_duration(Duration::from_millis(test_one.large_queue_ser_ms as u64)),
                 test_one.large_queue_ser_ms,
                 test_one.large_queue_ser_ns
             ),
             format!(
                 "{} ({}ms) ({}ns)",
-                format_duration(Duration::from_millis(test_two.large_queue_ser_ms as u64)).to_string(),
+                format_duration(Duration::from_millis(test_two.large_queue_ser_ms as u64)),
                 test_two.large_queue_ser_ms,
                 test_two.large_queue_ser_ns
             )
@@ -237,21 +237,21 @@ impl SpeedTestComparisons {
             "Deserialisation",
             format!(
                 "{} ({}ms) ({}ns)",
-                format_duration(Duration::from_millis(test_one.large_queue_deser_ms as u64)).to_string(),
+                format_duration(Duration::from_millis(test_one.large_queue_deser_ms as u64)),
                 test_one.large_queue_deser_ms,
                 test_one.large_queue_deser_ns
             ),
             format!(
                 "{} ({}ms) ({}ns)",
-                format_duration(Duration::from_millis(test_two.large_queue_deser_ms as u64)).to_string(),
+                format_duration(Duration::from_millis(test_two.large_queue_deser_ms as u64)),
                 test_two.large_queue_deser_ms,
                 test_two.large_queue_deser_ns
             )
         ]);
         comparison_table.add_row(row![
             "Total Runtime",
-            format!("{} ({}ms) ({}ns)", format_duration(test_one_duration).to_string(), test_one.total_run_ms, test_one.total_run_ns),
-            format!("{} ({}ms) ({}ns)", format_duration(test_two_duration).to_string(), test_two.total_run_ms, test_two.total_run_ns)
+            format!("{} ({}ms) ({}ns)", format_duration(test_one_duration), test_one.total_run_ms, test_one.total_run_ns),
+            format!("{} ({}ms) ({}ns)", format_duration(test_two_duration), test_two.total_run_ms, test_two.total_run_ns)
         ]);
         comparison_table.printstd();
     }
@@ -323,9 +323,7 @@ pub fn combine_found_files(
             let mut loaded_contents: Vec<String> = Vec::new();
             for file in file_paths {
                 let append_data: Result<(), Box<dyn Error>> = append_lines(file, &mut loaded_contents);
-                if let Err(append_failed) = append_data {
-                    return Err(append_failed);
-                }
+                append_data?
             }
             Ok(loaded_contents.to_vec())
         }
@@ -342,9 +340,7 @@ pub fn load_found_files(
             let mut test_files: Vec<TestFile> = Vec::new();
             for file in file_paths {
                 let load_test_file: Result<(), Box<dyn Error>> = test_files.append_data(file);
-                if let Err(load_failed) = load_test_file {
-                    return Err(load_failed);
-                }
+                load_test_file?
             }
             Ok(test_files)
         }
@@ -480,7 +476,7 @@ pub fn compare_errors(
             serde_error_string,
             "Errors processing {} do not match between library {} and serde Value {}",
             line,
-            library_error.to_string(),
+            library_error,
             serde_error_string
         );
     }
@@ -490,9 +486,8 @@ pub fn test_enum_serialisation(message: &AcarsVdlm2Message, serialisation_target
     match serialisation_target {
         SerialisationTarget::String => {
             let encoded_string: MessageResult<String> = message.to_string();
-            assert_eq!(
+            assert!(
                 encoded_string.as_ref().err().is_none(),
-                true,
                 "Parsing data {:?} to String failed: {:?}",
                 message,
                 encoded_string.as_ref().err()
@@ -500,9 +495,8 @@ pub fn test_enum_serialisation(message: &AcarsVdlm2Message, serialisation_target
         }
         SerialisationTarget::Bytes => {
             let encoded_bytes: MessageResult<Vec<u8>> = message.to_bytes();
-            assert_eq!(
+            assert!(
                 encoded_bytes.as_ref().err().is_none(),
-                true,
                 "Parsing data {:?} to bytes failed: {:?}",
                 message,
                 encoded_bytes.as_ref().err()
@@ -510,17 +504,15 @@ pub fn test_enum_serialisation(message: &AcarsVdlm2Message, serialisation_target
         }
         SerialisationTarget::Both => {
             let encoded_string: MessageResult<String> = message.to_string();
-            assert_eq!(
+            assert!(
                 encoded_string.as_ref().err().is_none(),
-                true,
                 "Parsing data {:?} to String failed: {:?}",
                 message,
                 encoded_string.as_ref().err()
             );
             let encoded_bytes: MessageResult<Vec<u8>> = message.to_bytes();
-            assert_eq!(
+            assert!(
                 encoded_bytes.as_ref().err().is_none(),
-                true,
                 "Parsing data {:?} to bytes failed: {:?}",
                 message,
                 encoded_bytes.as_ref().err()
@@ -533,9 +525,8 @@ pub fn test_value_serialisation(message: &Value, serialisation_target: Serialisa
     match serialisation_target {
         SerialisationTarget::String => {
             let encoded_string: MessageResult<String> = serde_json::to_string(&message);
-            assert_eq!(
+            assert!(
                 encoded_string.as_ref().err().is_none(),
-                true,
                 "Parsing data {:?} to String failed: {:?}",
                 message,
                 encoded_string.as_ref().err()
@@ -543,9 +534,8 @@ pub fn test_value_serialisation(message: &Value, serialisation_target: Serialisa
         }
         SerialisationTarget::Bytes => {
             let encoded_bytes: MessageResult<Vec<u8>> = serde_json::to_vec(&message);
-            assert_eq!(
+            assert!(
                 encoded_bytes.as_ref().err().is_none(),
-                true,
                 "Parsing data {:?} to bytes failed: {:?}",
                 message,
                 encoded_bytes.as_ref().err()
@@ -553,17 +543,15 @@ pub fn test_value_serialisation(message: &Value, serialisation_target: Serialisa
         }
         SerialisationTarget::Both => {
             let encoded_string: MessageResult<String> = serde_json::to_string(&message);
-            assert_eq!(
+            assert!(
                 encoded_string.as_ref().err().is_none(),
-                true,
                 "Parsing data {:?} to String failed: {:?}",
                 message,
                 encoded_string.as_ref().err()
             );
             let encoded_bytes: MessageResult<Vec<u8>> = serde_json::to_vec(&message);
-            assert_eq!(
+            assert!(
                 encoded_bytes.as_ref().err().is_none(),
-                true,
                 "Parsing data {:?} to bytes failed: {:?}",
                 message,
                 encoded_bytes.as_ref().err()

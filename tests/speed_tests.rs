@@ -59,7 +59,7 @@ impl SpeedTest for i64 {
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
                 let queue_memory_size: Byte = Byte::from_bytes(size_of_val(&*test_message_queue) as u128);
                 run_durations.queue_memory_size = queue_memory_size;
-                println!("{} => Content duplicated, queue contains {} messages ({})", Utc::now(), test_message_queue.len().separate_with_commas(), queue_memory_size.get_appropriate_unit(false).to_string());
+                println!("{} => Content duplicated, queue contains {} messages ({})", Utc::now(), test_message_queue.len().separate_with_commas(), queue_memory_size.get_appropriate_unit(false));
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<AcarsVdlm2Message>>> = Arc::new(Mutex::new(Vec::new()));
                 println!("{} => Shuffling data order", Utc::now());
@@ -108,7 +108,7 @@ impl SpeedTest for i64 {
                 let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
                 let queue_memory_size: Byte = Byte::from_bytes(size_of_val(&*test_message_queue) as u128);
                 run_durations.queue_memory_size = queue_memory_size;
-                println!("{} => Content duplicated, queue contains {} messages ({})", Utc::now(), test_message_queue.len().separate_with_commas(), queue_memory_size.get_appropriate_unit(false).to_string());
+                println!("{} => Content duplicated, queue contains {} messages ({})", Utc::now(), test_message_queue.len().separate_with_commas(), queue_memory_size.get_appropriate_unit(false));
                 run_durations.run_processed_items = test_message_queue.len();
                 let successfully_decoded_items: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
                 println!("{} => Shuffling data order", Utc::now());
@@ -117,7 +117,7 @@ impl SpeedTest for i64 {
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
                 let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueDeser);
                 test_message_queue.par_iter().for_each(|entry| {
-                    let parsed_message: MessageResult<Value> = serde_json::from_str(&entry);
+                    let parsed_message: MessageResult<Value> = serde_json::from_str(entry);
                     match parsed_message {
                         Err(_) => {}
                         Ok(decoded_message) => {

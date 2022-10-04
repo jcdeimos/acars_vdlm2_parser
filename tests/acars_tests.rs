@@ -28,9 +28,9 @@ fn test_acars_parsing() -> Result<(), Box<dyn Error>> {
             }
             for message in valid_acars_messages {
                 let acars_to_string: MessageResult<String> = message.to_string();
-                assert_eq!(acars_to_string.as_ref().err().is_none(), true);
+                assert!(acars_to_string.as_ref().err().is_none());
                 let acars_to_bytes: MessageResult<Vec<u8>> = message.to_bytes();
-                assert_eq!(acars_to_bytes.as_ref().err().is_none(), true);
+                assert!(acars_to_bytes.as_ref().err().is_none());
             }
             for line in failed_decodes {
                 let library_parse_error: Option<serde_json::Error> = line.to_acars().err();

@@ -28,7 +28,7 @@ fn test_vdlm2_parsing() -> Result<(), Box<dyn Error>> {
             }
             for message in valid_vdlm2_messages {
                 let vdlm2_to_string: MessageResult<String> = message.to_string();
-                assert_eq!(vdlm2_to_string.as_ref().err().is_none(), true);
+                assert!(vdlm2_to_string.as_ref().err().is_none());
             }
             for line in failed_decodes {
                 let library_parse_error: Option<serde_json::Error> = line.to_vdlm2().err();

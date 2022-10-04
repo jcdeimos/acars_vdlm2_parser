@@ -148,12 +148,12 @@ impl Vdlm2Message {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Vdlm2Message {
     pub vdl2: Vdlm2Body
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Vdlm2Body {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app: Option<AppDetails>,
@@ -177,13 +177,13 @@ pub struct Vdlm2Body {
     pub t: Option<TBlock>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TBlock {
     pub sec: u64,
     pub usec: u64
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AvlcData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cmd: Option<String>,
@@ -205,14 +205,14 @@ pub struct AvlcData {
     pub acars: Option<AvlcAcars>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct DstBlock {
     pub addr: String,
     #[serde(rename = "type")]
     pub vehicle_type: String
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct SrcBlock {
     pub addr: String,
     pub status: String,
@@ -277,7 +277,7 @@ pub struct CoOrdinates {
     lon: f64
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AvlcAcars {
     pub err: bool,
     pub crc_ok: bool,
@@ -302,7 +302,7 @@ pub struct AvlcAcars {
     pub arinc622: Option<Arinc622>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Arinc622 {
     pub msg_type: String,
     pub crc_ok: bool,
@@ -314,13 +314,13 @@ pub struct Arinc622 {
     pub cpdlc: Option<CPDLC>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AdscEntry {
     pub tags: Vec<Value>,
     pub err: bool
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(rename_all = "snake_case")]
 pub enum AdscTagGroups {
     ReportInterval {
@@ -336,13 +336,13 @@ pub struct AdscWaypoint {
     pub eta_sec: Option<i16>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct NonCompMessageGroup {
     pub noncomp_tag: i64,
     pub noncomp_cause: String
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AdscEventData {
     pub alt: i64,
     pub lat: f64,
@@ -353,42 +353,42 @@ pub struct AdscEventData {
     pub pos_accuracy_nm: f64
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct CPDLC {
     pub err: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub atc_downlink_msg: Option<ATCDownlinkMsg>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ATCDownlinkMsg {
     pub header: ATCDownlinkMsgHeader,
     pub atc_downlink_msg_element_id: ATCDownlinkMsgElementID
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ATCDownlinkTimestamp {
-    hour: u16,
-    min: u16,
-    sec: u16
+    pub hour: u16,
+    pub min: u16,
+    pub sec: u16
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ATCDownlinkData {
     #[serde(skip_serializing_if = "Option::is_none")]
-    ver_num: Option<u16>
+    pub ver_num: Option<u16>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ATCDownlinkMsgHeader {
-    msg_id: u16,
-    msg_ref: Option<u16>,
-    timestamp: ATCDownlinkTimestamp
+    pub msg_id: u16,
+    pub msg_ref: Option<u16>,
+    pub timestamp: ATCDownlinkTimestamp
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ATCDownlinkMsgElementID {
-    choice_label: String,
-    choice: String,
-    data: ATCDownlinkData
+    pub choice_label: String,
+    pub choice: String,
+    pub data: ATCDownlinkData
 }
