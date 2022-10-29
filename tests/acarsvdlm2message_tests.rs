@@ -1,8 +1,7 @@
 use std::error::Error;
 use rand::prelude::{SliceRandom, ThreadRng};
 use rand::thread_rng;
-use serde_json::Value;
-use acars_vdlm2_parser::{AcarsVdlm2Message, DecodeMessage, MessageResult};
+use acars_vdlm2_parser::{AcarsVdlm2Message, DecodeMessage};
 use crate::common::{combine_files_of_message_type, compare_errors, MessageType, SerialisationTarget, test_enum_serialisation};
 
 mod common;
@@ -15,9 +14,7 @@ mod common;
 /// It validates that it gets errors that it is expecting and the correct number of errors.
 #[test]
 fn test_determining_message() -> Result<(), Box<dyn Error>> {
-    let load_all_messages: Result<Vec<String>, Box<dyn Error>> =
-        combine_files_of_message_type(MessageType::All);
-    match load_all_messages {
+    match combine_files_of_message_type(MessageType::All) {
         Err(load_error) => Err(load_error),
         Ok(mut all_messages) => {
             let mut rng: ThreadRng = thread_rng();
@@ -25,8 +22,7 @@ fn test_determining_message() -> Result<(), Box<dyn Error>> {
             let mut failed_decodes: Vec<String> = Vec::new();
             all_messages.shuffle(&mut rng);
             for entry in all_messages {
-                let parsed_message: MessageResult<AcarsVdlm2Message> = entry.decode_message();
-                match parsed_message {
+                match entry.decode_message() {
                     Err(_) =>
                         failed_decodes.push(entry),
                     Ok(decoded_message) =>
@@ -38,11 +34,7 @@ fn test_determining_message() -> Result<(), Box<dyn Error>> {
                 test_enum_serialisation(&message, SerialisationTarget::Both);
             }
             for line in failed_decodes {
-                let library_parse_error: Option<serde_json::Error> =
-                    line.decode_message().err();
-                let serde_value_error: Result<Value, serde_json::Error> =
-                    serde_json::from_str(&line);
-                compare_errors(library_parse_error, serde_value_error, &line);
+                compare_errors(line.decode_message().err(), serde_json::from_str(&line), &line);
             }
             Ok(())
         }

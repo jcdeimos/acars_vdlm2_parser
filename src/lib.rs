@@ -43,13 +43,14 @@ impl DecodeMessage for str {
 impl AcarsVdlm2Message {
     /// Converts `AcarsVdlm2Message` to `String`.
     pub fn to_string(&self) -> MessageResult<String> {
+        trace!("Converting {:?} to a string", &self);
         serde_json::to_string(self)
     }
     
     /// Converts `AcarsVdlm2Message` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
-        let data = serde_json::to_string(self);
-        match data {
+        trace!("Converting {:?} to a string and appending a newline", &self);
+        match serde_json::to_string(self) {
             Err(to_string_error) => Err(to_string_error),
             Ok(string) => Ok(format!("{}\n", string))
         }
@@ -59,8 +60,8 @@ impl AcarsVdlm2Message {
     ///
     /// The output is returned as a `Vec<u8>`.
     pub fn to_bytes(&self) -> MessageResult<Vec<u8>> {
-        let string_conversion: MessageResult<String> = self.to_string();
-        match string_conversion {
+        trace!("Converting {:?} into a string and encoding as bytes", &self);
+        match self.to_string() {
             Err(conversion_failed) => Err(conversion_failed),
             Ok(string) => Ok(string.into_bytes()),
         }
@@ -70,8 +71,8 @@ impl AcarsVdlm2Message {
     ///
     /// The output is returned as a `Vec<u8>`.
     pub fn to_bytes_newline(&self) -> MessageResult<Vec<u8>> {
-        let string_conversion: MessageResult<String> = self.to_string_newline();
-        match string_conversion {
+        trace!("Converting {:?} into a string, appending a newline and encoding as bytes", &self);
+        match self.to_string_newline() {
             Err(conversion_failed) => Err(conversion_failed),
             Ok(string) => Ok(string.into_bytes())
         }
@@ -79,6 +80,7 @@ impl AcarsVdlm2Message {
 
     /// Clears a station name that may be set for either `Vdlm2Message` or `AcarsMessage`.
     pub fn clear_station_name(&mut self) {
+        trace!("Clearing the station name for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
                 vdlm2.clear_station_name(),
@@ -89,6 +91,7 @@ impl AcarsVdlm2Message {
 
     /// Sets a station name to the provided value for either `Vdlm2Message` or `AcarsMessage`.
     pub fn set_station_name(&mut self, station_name: &str) {
+        trace!("Setting the station name to {} for {:?}", station_name, &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
                 vdlm2.set_station_name(station_name),
@@ -99,6 +102,7 @@ impl AcarsVdlm2Message {
 
     /// Clears any proxy details that may be set for either `Vdlm2Message` or `AcarsMessage`.
     pub fn clear_proxy_details(&mut self) {
+        trace!("Clearing the proxy details for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
                 vdlm2.clear_proxy_details(),
@@ -115,6 +119,8 @@ impl AcarsVdlm2Message {
         proxied_by: &str,
         acars_router_version: &str,
     ) {
+        trace!("Setting the proxy details for {:?} to include proxy {} and router version {}",
+            &self, proxied_by, acars_router_version);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => {
                 vdlm2.set_proxy_details(proxied_by, acars_router_version)
@@ -127,6 +133,7 @@ impl AcarsVdlm2Message {
 
     /// Clears the time details from the message.
     pub fn clear_time(&mut self) {
+        trace!("Clearing the time for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
                 vdlm2.clear_time(),
@@ -137,6 +144,7 @@ impl AcarsVdlm2Message {
 
     /// Retrieves the time information from the message.
     pub fn get_time(&self) -> Option<f64> {
+        trace!("Getting the time from {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
                 vdlm2.get_time(),
@@ -147,6 +155,7 @@ impl AcarsVdlm2Message {
     
     /// Clears the `freq_skew` field from a `Vdlm2Message`.
     pub fn clear_freq_skew(&mut self) {
+        trace!("Clearing the frequency skew for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_freq_skew(),
             AcarsVdlm2Message::AcarsMessage(_) => {}
@@ -155,6 +164,7 @@ impl AcarsVdlm2Message {
     
     /// Clears the `hdr_bits_fixed` field from a `Vdlm2Message`.
     pub fn clear_hdr_bits_fixed(&mut self) {
+        trace!("Clearing the hdr bits fixed for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_hdr_bits_fixed(),
             AcarsVdlm2Message::AcarsMessage(_) => {}
@@ -163,6 +173,7 @@ impl AcarsVdlm2Message {
     
     /// Clears the `noise_level` field from a `Vdlm2Message`.
     pub fn clear_noise_level(&mut self) {
+        trace!("Clearing the noise level for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_noise_level(),
             AcarsVdlm2Message::AcarsMessage(_) => {}
@@ -171,6 +182,7 @@ impl AcarsVdlm2Message {
     
     /// Clears the `octets_corrected_by_fec` field from a `Vdlm2Message`.
     pub fn clear_octets_corrected_by_fec(&mut self) {
+        trace!("Clearing the octets corrected by fec for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_octets_corrected_by_fec(),
             AcarsVdlm2Message::AcarsMessage(_) => {}
@@ -179,6 +191,7 @@ impl AcarsVdlm2Message {
     
     /// Clears the `sig_level` field from a `Vdlm2Message`.
     pub fn clear_sig_level(&mut self) {
+        trace!("Clearing the signal level for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_sig_level(),
             AcarsVdlm2Message::AcarsMessage(_) => {}
@@ -187,6 +200,7 @@ impl AcarsVdlm2Message {
     
     /// Clears the `channel` field from a `AcarsMessage`.
     pub fn clear_channel(&mut self) {
+        trace!("Clearing the channel for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(_) => {}
             AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_channel()
@@ -195,6 +209,7 @@ impl AcarsVdlm2Message {
     
     /// Clears the `error` field from a `AcarsMessage`.
     pub fn clear_error(&mut self) {
+        trace!("Clearing the error field for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(_) => {}
             AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_error()
@@ -203,6 +218,7 @@ impl AcarsVdlm2Message {
     
     /// Clears the `level` field from a `AcarsMessage`.
     pub fn clear_level(&mut self) {
+        trace!("Clearing the level field for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(_) => {}
             AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_level()
@@ -222,9 +238,23 @@ pub enum AcarsVdlm2Message {
     AcarsMessage(AcarsMessage),
 }
 
+impl Default for AcarsVdlm2Message {
+    fn default() -> Self {
+        Self::Vdlm2Message(Default::default())
+    }
+}
+
 /// This struct lives here because it is used by both `Vdlm2Message` and `AcarsMessage`.
 ///
 /// This does not normally exist on `AcarsMessage` and has been added as part of the implementation for the acars_router project.
+/// ```
+/// use acars_vdlm2_parser::AppDetails;
+/// let app_details: AppDetails = AppDetails { name: "test_name".to_string(), ver: "test_ver".to_string(), proxied: None, proxied_by: None, acars_router_version: None };
+/// let app_details_string: Result<String, serde_json::Error> = serde_json::to_string(&app_details);
+/// let expected_result = r#"{"name":"test_name","ver":"test_ver"}"#;
+/// assert!(app_details_string.as_ref().is_ok());
+/// assert_eq!(app_details_string.as_ref().unwrap(), expected_result, "Was expecting {} but received {}", expected_result, app_details_string.as_ref().unwrap());
+/// ```
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct AppDetails {
     pub name: String,

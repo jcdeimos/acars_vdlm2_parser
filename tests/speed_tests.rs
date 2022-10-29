@@ -7,7 +7,7 @@ use chrono::Utc;
 use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
 use rand::thread_rng;
-use acars_vdlm2_parser::{AcarsVdlm2Message, DecodeMessage, MessageResult};
+use acars_vdlm2_parser::{AcarsVdlm2Message, DecodeMessage};
 use crate::common::{combine_files_of_message_type, ContentDuplicator, StopwatchType, MessageType, RunDurations, SpeedTestType, Stopwatch, test_enum_serialisation, test_value_serialisation, SpeedTestComparisons, SerialisationTarget};
 use rayon::prelude::*;
 use serde_json::Value;
@@ -17,12 +17,12 @@ use byte_unit::Byte;
 #[test]
 #[ignore]
 fn test_speed_large_queue() {
-    1.large_queue_library().large_queue_comparison(1.large_queue_value());
-    1_000.large_queue_library().large_queue_comparison(1_000.large_queue_value());
-    2_500.large_queue_library().large_queue_comparison(2_500.large_queue_value());
-    5_000.large_queue_library().large_queue_comparison(5_000.large_queue_value());
-    7_500.large_queue_library().large_queue_comparison(7_500.large_queue_value());
-    10_000.large_queue_library().large_queue_comparison(10_000.large_queue_value());
+    large_queue_comparison(1.large_queue_library(), 1.large_queue_value());
+    large_queue_comparison(1_000.large_queue_library(), 1_000.large_queue_value());
+    large_queue_comparison(2_500.large_queue_library(), 2_500.large_queue_value());
+    large_queue_comparison(5_000.large_queue_library(), 5_000.large_queue_value());
+    large_queue_comparison(7_500.large_queue_library(), 7_500.large_queue_value());
+    large_queue_comparison(10_000.large_queue_library(), 10_000.large_queue_value());
 }
 #[test]
 #[ignore]
@@ -47,9 +47,7 @@ pub(crate) trait SpeedTest {
 impl SpeedTest for i64 {
     fn large_queue_library(&self) -> Result<RunDurations, Box<dyn Error>> {
         println!("\n{} => Starting a queue processing speed test using the library", Utc::now());
-        let load_all_messages: Result<Vec<String>, Box<dyn Error>> =
-            combine_files_of_message_type(MessageType::All);
-        match load_all_messages {
+        match combine_files_of_message_type(MessageType::All) {
             Err(load_error) => Err(load_error),
             Ok(all_messages) => {
                 let mut run_durations: RunDurations = RunDurations::new();
@@ -68,12 +66,8 @@ impl SpeedTest for i64 {
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
                 let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueDeser);
                 test_message_queue.par_iter().for_each(|entry| {
-                    let parsed_message: MessageResult<AcarsVdlm2Message> = entry.decode_message();
-                    match parsed_message {
-                        Err(_) => {}
-                        Ok(decoded_message) => {
-                            successfully_decoded_items.lock().unwrap().push(decoded_message);
-                        }
+                    if let Ok(decoded_message) = entry.decode_message() {
+                        successfully_decoded_items.lock().unwrap().push(decoded_message);
                     }
                 });
                 deserialisation_run_stopwatch.stop();
@@ -96,9 +90,7 @@ impl SpeedTest for i64 {
     
     fn large_queue_value(&self) -> Result<RunDurations, Box<dyn Error>> {
         println!("{} => Starting a queue processing speed test using serde Value", Utc::now());
-        let load_all_messages: Result<Vec<String>, Box<dyn Error>> =
-            combine_files_of_message_type(MessageType::All);
-        match load_all_messages {
+        match combine_files_of_message_type(MessageType::All) {
             Err(load_error) => Err(load_error),
             Ok(all_messages) => {
                 let mut run_durations: RunDurations = RunDurations::new();
@@ -117,12 +109,8 @@ impl SpeedTest for i64 {
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
                 let mut deserialisation_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::LargeQueueDeser);
                 test_message_queue.par_iter().for_each(|entry| {
-                    let parsed_message: MessageResult<Value> = serde_json::from_str(entry);
-                    match parsed_message {
-                        Err(_) => {}
-                        Ok(decoded_message) => {
-                            successfully_decoded_items.lock().unwrap().push(decoded_message);
-                        }
+                    if let Ok(decoded_message) = serde_json::from_str::<Value>(entry) {
+                        successfully_decoded_items.lock().unwrap().push(decoded_message);
                     }
                 });
                 deserialisation_run_stopwatch.stop();
@@ -144,28 +132,28 @@ impl SpeedTest for i64 {
     }
 }
 
+fn large_queue_comparison(result_one: Result<RunDurations, Box<dyn Error>>,
+                          result_two: Result<RunDurations, Box<dyn Error>>) {
+    match (result_one, result_two) {
+        (Err(library_error), _) => println!("Library test had an error: {}", library_error),
+        (_, Err(value_error)) => println!("Value test had an error: {}", value_error),
+        (Ok(library), Ok(value)) => {
+            let comparison: SpeedTestComparisons = SpeedTestComparisons {
+                test_one_type: SpeedTestType::LargeQueueLibrary,
+                test_one_results: library,
+                test_two_type: SpeedTestType::LargeQueueValue,
+                test_two_results: value
+            };
+            comparison.compare_large_queue();
+        }
+    }
+}
+
 pub(crate) trait ProcessQueueResults {
-    fn large_queue_comparison(self, value_result: Self);
     fn large_queue_duration(self, speed_test_type: SpeedTestType);
 }
 
 impl ProcessQueueResults for Result<RunDurations, Box<dyn Error>> {
-    fn large_queue_comparison(self, value_result: Self) {
-        match (self, value_result) {
-            (Err(library_error), _) => println!("Library test had an error: {}", library_error),
-            (_, Err(value_error)) => println!("Value test had an error: {}", value_error),
-            (Ok(library), Ok(value)) => {
-                let comparison: SpeedTestComparisons = SpeedTestComparisons {
-                    test_one_type: SpeedTestType::LargeQueueLibrary,
-                    test_one_results: library,
-                    test_two_type: SpeedTestType::LargeQueueValue,
-                    test_two_results: value
-                };
-                comparison.compare_large_queue();
-            }
-        }
-    }
-    
     fn large_queue_duration(self, speed_test_type: SpeedTestType) {
         match self {
             Err(test_error) => println!("Library test had an error: {}", test_error),

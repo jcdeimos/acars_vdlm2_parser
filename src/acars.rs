@@ -38,8 +38,7 @@ impl AcarsMessage {
     
     /// Converts `AcarsMessage` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
-        let data = serde_json::to_string(self);
-        match data {
+        match serde_json::to_string(self) {
             Err(to_string_error) => Err(to_string_error),
             Ok(string) => Ok(format!("{}\n", string))
         }
@@ -49,8 +48,7 @@ impl AcarsMessage {
     ///
     /// The output is returned as a `Vec<u8>`.
     pub fn to_bytes(&self) -> MessageResult<Vec<u8>> {
-        let string_conversion: MessageResult<String> = self.to_string();
-        match string_conversion {
+        match self.to_string() {
             Err(conversion_failed) => Err(conversion_failed),
             Ok(string) => Ok(string.into_bytes())
         }
@@ -60,8 +58,7 @@ impl AcarsMessage {
     ///
     /// The output is returned as a `Vec<u8>`.
     pub fn to_bytes_newline(&self) -> MessageResult<Vec<u8>> {
-        let string_conversion: MessageResult<String> = self.to_string_newline();
-        match string_conversion {
+        match self.to_string_newline() {
             Err(conversion_failed) => Err(conversion_failed),
             Ok(string) => Ok(string.into_bytes())
         }
@@ -79,10 +76,13 @@ impl AcarsMessage {
 
     /// Clears any proxy details that may be set for `AcarsMessage`.
     pub fn clear_proxy_details(&mut self) {
-        match self.app.as_mut() {
-            None => warn!("Attempted to remove proxy details but there isn't an app block, nothing to do"),
-            Some(app_details) => app_details.remove_proxy()
+        if let Some(app_details) = self.app.as_mut() {
+            app_details.remove_proxy();
         }
+        // match self.app.as_mut() {
+        //     None => warn!("Attempted to remove proxy details but there isn't an app block, nothing to do"),
+        //     Some(app_details) => app_details.remove_proxy()
+        // }
     }
 
     /// Sets proxy details to the provided details and sets `proxied` to true.
@@ -91,10 +91,7 @@ impl AcarsMessage {
     /// This invokes `AppDetails::proxy()` for `AcarsMessage` if there is an app block to add proxy details.
     pub fn set_proxy_details(&mut self, proxied_by: &str, acars_router_version: &str) {
         match self.app.as_mut() {
-            None => {
-                warn!("Message has no app block, inserting a place holder");
-                self.app = Some(AppDetails::new(proxied_by, acars_router_version));
-            },
+            None => self.app = Some(AppDetails::new(proxied_by, acars_router_version)),
             Some(app_details) => app_details.proxy(proxied_by, acars_router_version)
         }
     }
@@ -120,7 +117,7 @@ impl AcarsMessage {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Default)]
 pub struct AcarsMessage {
     pub freq: f64,
     pub channel: Option<u16>,
@@ -162,11 +159,17 @@ pub struct AcarsMessage {
     pub flight: Option<String>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PartialOrd)]
 #[serde(untagged)]
 pub enum LevelType {
     I32(i32),
     Float64(f64)
+}
+
+impl Default for LevelType {
+    fn default() -> Self {
+        Self::I32(0)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -174,4 +177,10 @@ pub enum LevelType {
 pub enum AckType {
     String(String),
     Bool(bool)
+}
+
+impl Default for AckType {
+    fn default() -> Self {
+        Self::String("".to_string())
+    }
 }
