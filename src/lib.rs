@@ -5,6 +5,7 @@ extern crate serde_json;
 use crate::acars::AcarsMessage;
 use crate::vdlm2::Vdlm2Message;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 pub mod acars;
 pub mod vdlm2;
@@ -301,15 +302,12 @@ impl AppDetails {
     /// assert_eq!(acars, manual_acars);
     /// ```
     pub fn proxy(&mut self, proxied_by: &str, acars_router_version: &str) {
-        let acars_router_uuid = match self.acars_router_uuid.is_some() {
-            true => self.acars_router_uuid.as_ref().unwrap().to_string(),
-            false => Uuid::new_v4().to_string(),
-        };
-
         self.proxied = Some(true);
         self.proxied_by = Some(proxied_by.to_string());
         self.acars_router_version = Some(acars_router_version.to_string());
-        self.acars_router_uuid = Some(acars_router_uuid);
+        if self.acars_router_uuid.is_none() {
+            self.acars_router_uuid = Some(Uuid::new_v4().to_string());
+        }
     }
     /// Removes the proxy information from an existing `AppDetails`.
     /// ```
