@@ -5,6 +5,7 @@ extern crate serde_json;
 use crate::acars::AcarsMessage;
 use crate::vdlm2::Vdlm2Message;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 pub mod acars;
 pub mod vdlm2;
@@ -249,7 +250,7 @@ impl Default for AcarsVdlm2Message {
 /// This does not normally exist on `AcarsMessage` and has been added as part of the implementation for the acars_router project.
 /// ```
 /// use acars_vdlm2_parser::AppDetails;
-/// let app_details: AppDetails = AppDetails { name: "test_name".to_string(), ver: "test_ver".to_string(), proxied: None, proxied_by: None, acars_router_version: None };
+/// let app_details: AppDetails = AppDetails { name: "test_name".to_string(), ver: "test_ver".to_string(), proxied: None, proxied_by: None, acars_router_version: None, acars_router_uuid: None };
 /// let app_details_string: Result<String, serde_json::Error> = serde_json::to_string(&app_details);
 /// let expected_result = r#"{"name":"test_name","ver":"test_ver"}"#;
 /// assert!(app_details_string.as_ref().is_ok());
@@ -265,14 +266,17 @@ pub struct AppDetails {
     pub proxied_by: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub acars_router_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acars_router_uuid: Option<String>,
 }
 
 impl AppDetails {
     /// Creates a new instance of `AppDetails` with the provided details.
     /// ```
     /// use acars_vdlm2_parser::AppDetails;
-    /// let manual: AppDetails = AppDetails { name: "".to_string(), ver: "".to_string(), proxied: Some(true), proxied_by: Some("test".to_string()), acars_router_version: Some("1.0.4".to_string()) };
-    /// let generated: AppDetails = AppDetails::new("test", "1.0.4");
+    /// let manual: AppDetails = AppDetails { name: "".to_string(), ver: "".to_string(), proxied: Some(true), proxied_by: Some("test".to_string()), acars_router_version: Some("1.0.4".to_string()), acars_router_uuid: Some("00000000-0000-0000-0000-000000000000".to_string()) };
+    /// let mut generated: AppDetails = AppDetails::new("test", "1.0.4");
+    /// generated.acars_router_uuid = Some("00000000-0000-0000-0000-000000000000".to_string());
     /// assert_eq!(manual, generated);
     /// ```
     pub fn new(proxied_by: &str, acars_router_version: &str) -> Self {
@@ -282,15 +286,16 @@ impl AppDetails {
             proxied: Some(true),
             proxied_by: Some(proxied_by.to_string()),
             acars_router_version: Some(acars_router_version.to_string()),
+            acars_router_uuid: Some(Uuid::new_v4().to_string()),
         }
     }
     /// Updates an existing entry of `AppDetails` with the provided details.
     /// ```
     /// use acars_vdlm2_parser::AppDetails;
-    /// let manual_vdlm2: AppDetails = AppDetails { name: "dumpvdl2".to_string(), ver: "2.2.0".to_string(), proxied: Some(true), proxied_by: Some("acars_router".to_string()), acars_router_version: Some("1.0.12".to_string()) };
-    /// let mut vdlm2: AppDetails = AppDetails { name: "dumpvdl2".to_string(), ver: "2.2.0".to_string(), proxied: None, proxied_by: None, acars_router_version: None };
-    /// let manual_acars: AppDetails = AppDetails { name: "acarsdec". to_string(), ver: "3.7".to_string(), proxied: Some(true), proxied_by: Some("acars_router".to_string()), acars_router_version: Some("1.0.12".to_string()) };
-    /// let mut acars: AppDetails = AppDetails { name: "acarsdec". to_string(), ver: "3.7".to_string(), proxied: None, proxied_by: None, acars_router_version: None };
+    /// let manual_vdlm2: AppDetails = AppDetails { name: "dumpvdl2".to_string(), ver: "2.2.0".to_string(), proxied: Some(true), proxied_by: Some("acars_router".to_string()), acars_router_version: Some("1.0.12".to_string()), acars_router_uuid: Some("00000000-0000-0000-0000-000000000000".to_string()) };
+    /// let mut vdlm2: AppDetails = AppDetails { name: "dumpvdl2".to_string(), ver: "2.2.0".to_string(), proxied: None, proxied_by: None, acars_router_version: None, acars_router_uuid: Some("00000000-0000-0000-0000-000000000000".to_string())  };
+    /// let manual_acars: AppDetails = AppDetails { name: "acarsdec". to_string(), ver: "3.7".to_string(), proxied: Some(true), proxied_by: Some("acars_router".to_string()), acars_router_version: Some("1.0.12".to_string()), acars_router_uuid: Some("00000000-0000-0000-0000-000000000000".to_string()) };
+    /// let mut acars: AppDetails = AppDetails { name: "acarsdec". to_string(), ver: "3.7".to_string(), proxied: None, proxied_by: None, acars_router_version: None, acars_router_uuid: Some("00000000-0000-0000-0000-000000000000".to_string())  };
     /// vdlm2.proxy("acars_router", "1.0.12");
     /// acars.proxy("acars_router", "1.0.12");
     /// assert_eq!(vdlm2, manual_vdlm2);
@@ -300,14 +305,17 @@ impl AppDetails {
         self.proxied = Some(true);
         self.proxied_by = Some(proxied_by.to_string());
         self.acars_router_version = Some(acars_router_version.to_string());
+        if self.acars_router_uuid.is_none() {
+            self.acars_router_uuid = Some(Uuid::new_v4().to_string());
+        }
     }
     /// Removes the proxy information from an existing `AppDetails`.
     /// ```
     /// use acars_vdlm2_parser::AppDetails;
-    /// let mut vdlm2: AppDetails = AppDetails { name: "dumpvdl2".to_string(), ver: "2.2.0".to_string(), proxied: Some(true), proxied_by: Some("acars_router".to_string()), acars_router_version: Some("1.0.12".to_string()) };
-    /// let manual_vdlm2: AppDetails = AppDetails { name: "dumpvdl2".to_string(), ver: "2.2.0".to_string(), proxied: None, proxied_by: None, acars_router_version: None };
-    /// let mut acars: AppDetails = AppDetails { name: "acarsdec". to_string(), ver: "3.7".to_string(), proxied: Some(true), proxied_by: Some("acars_router".to_string()), acars_router_version: Some("1.0.12".to_string()) };
-    /// let manual_acars: AppDetails = AppDetails { name: "acarsdec". to_string(), ver: "3.7".to_string(), proxied: None, proxied_by: None, acars_router_version: None };
+    /// let mut vdlm2: AppDetails = AppDetails { name: "dumpvdl2".to_string(), ver: "2.2.0".to_string(), proxied: Some(true), proxied_by: Some("acars_router".to_string()), acars_router_version: Some("1.0.12".to_string()), acars_router_uuid: Some("00000000-0000-0000-0000-000000000000".to_string()) };
+    /// let manual_vdlm2: AppDetails = AppDetails { name: "dumpvdl2".to_string(), ver: "2.2.0".to_string(), proxied: None, proxied_by: None, acars_router_version: None, acars_router_uuid: None };
+    /// let mut acars: AppDetails = AppDetails { name: "acarsdec". to_string(), ver: "3.7".to_string(), proxied: Some(true), proxied_by: Some("acars_router".to_string()), acars_router_version: Some("1.0.12".to_string()), acars_router_uuid: Some("00000000-0000-0000-0000-000000000000".to_string()) };
+    /// let manual_acars: AppDetails = AppDetails { name: "acarsdec". to_string(), ver: "3.7".to_string(), proxied: None, proxied_by: None, acars_router_version: None, acars_router_uuid: None };
     /// vdlm2.remove_proxy();
     /// acars.remove_proxy();
     /// assert_eq!(vdlm2, manual_vdlm2);
@@ -317,5 +325,6 @@ impl AppDetails {
         self.proxied = None;
         self.proxied_by = None;
         self.acars_router_version = None;
+        self.acars_router_uuid = None;
     }
 }
