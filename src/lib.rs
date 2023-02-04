@@ -1,12 +1,10 @@
 extern crate serde;
 extern crate serde_json;
-#[macro_use]
-extern crate log;
+#[macro_use] extern crate log;
 
 use crate::acars::AcarsMessage;
 use crate::vdlm2::Vdlm2Message;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 pub mod acars;
 pub mod vdlm2;
@@ -48,13 +46,13 @@ impl AcarsVdlm2Message {
         trace!("Converting {:?} to a string", &self);
         serde_json::to_string(self)
     }
-
+    
     /// Converts `AcarsVdlm2Message` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
         trace!("Converting {:?} to a string and appending a newline", &self);
         match serde_json::to_string(self) {
             Err(to_string_error) => Err(to_string_error),
-            Ok(string) => Ok(format!("{}\n", string)),
+            Ok(string) => Ok(format!("{}\n", string))
         }
     }
 
@@ -68,18 +66,15 @@ impl AcarsVdlm2Message {
             Ok(string) => Ok(string.into_bytes()),
         }
     }
-
+    
     /// Converts `AcarsVdlm2Message` to a `String` terminated with a `\n` and encoded as bytes.
     ///
     /// The output is returned as a `Vec<u8>`.
     pub fn to_bytes_newline(&self) -> MessageResult<Vec<u8>> {
-        trace!(
-            "Converting {:?} into a string, appending a newline and encoding as bytes",
-            &self
-        );
+        trace!("Converting {:?} into a string, appending a newline and encoding as bytes", &self);
         match self.to_string_newline() {
             Err(conversion_failed) => Err(conversion_failed),
-            Ok(string) => Ok(string.into_bytes()),
+            Ok(string) => Ok(string.into_bytes())
         }
     }
 
@@ -87,21 +82,21 @@ impl AcarsVdlm2Message {
     pub fn clear_station_name(&mut self) {
         trace!("Clearing the station name for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_station_name(),
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_station_name(),
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
+                vdlm2.clear_station_name(),
+            AcarsVdlm2Message::AcarsMessage(acars) =>
+                acars.clear_station_name(),
         }
     }
 
     /// Sets a station name to the provided value for either `Vdlm2Message` or `AcarsMessage`.
     pub fn set_station_name(&mut self, station_name: &str) {
-        trace!(
-            "Setting the station name to {} for {:?}",
-            station_name,
-            &self
-        );
+        trace!("Setting the station name to {} for {:?}", station_name, &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.set_station_name(station_name),
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.set_station_name(station_name),
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
+                vdlm2.set_station_name(station_name),
+            AcarsVdlm2Message::AcarsMessage(acars) =>
+                acars.set_station_name(station_name),
         }
     }
 
@@ -109,21 +104,23 @@ impl AcarsVdlm2Message {
     pub fn clear_proxy_details(&mut self) {
         trace!("Clearing the proxy details for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_proxy_details(),
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_proxy_details(),
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
+                vdlm2.clear_proxy_details(),
+            AcarsVdlm2Message::AcarsMessage(acars) =>
+                acars.clear_proxy_details(),
         }
     }
 
     /// Sets proxy details to the provided details and sets `proxied` to true.
     ///
     /// This invokes `AppDetails::new()` for either `Vdlm2Message` or `AcarsMessage` and updates the record.
-    pub fn set_proxy_details(&mut self, proxied_by: &str, acars_router_version: &str) {
-        trace!(
-            "Setting the proxy details for {:?} to include proxy {} and router version {}",
-            &self,
-            proxied_by,
-            acars_router_version
-        );
+    pub fn set_proxy_details(
+        &mut self,
+        proxied_by: &str,
+        acars_router_version: &str,
+    ) {
+        trace!("Setting the proxy details for {:?} to include proxy {} and router version {}",
+            &self, proxied_by, acars_router_version);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => {
                 vdlm2.set_proxy_details(proxied_by, acars_router_version)
@@ -138,8 +135,10 @@ impl AcarsVdlm2Message {
     pub fn clear_time(&mut self) {
         trace!("Clearing the time for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_time(),
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_time(),
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
+                vdlm2.clear_time(),
+            AcarsVdlm2Message::AcarsMessage(acars) =>
+                acars.clear_time(),
         }
     }
 
@@ -147,11 +146,13 @@ impl AcarsVdlm2Message {
     pub fn get_time(&self) -> Option<f64> {
         trace!("Getting the time from {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.get_time(),
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.get_time(),
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
+                vdlm2.get_time(),
+            AcarsVdlm2Message::AcarsMessage(acars) =>
+                acars.get_time(),
         }
     }
-
+    
     /// Clears the `freq_skew` field from a `Vdlm2Message`.
     pub fn clear_freq_skew(&mut self) {
         trace!("Clearing the frequency skew for {:?}", &self);
@@ -160,7 +161,7 @@ impl AcarsVdlm2Message {
             AcarsVdlm2Message::AcarsMessage(_) => {}
         }
     }
-
+    
     /// Clears the `hdr_bits_fixed` field from a `Vdlm2Message`.
     pub fn clear_hdr_bits_fixed(&mut self) {
         trace!("Clearing the hdr bits fixed for {:?}", &self);
@@ -169,7 +170,7 @@ impl AcarsVdlm2Message {
             AcarsVdlm2Message::AcarsMessage(_) => {}
         }
     }
-
+    
     /// Clears the `noise_level` field from a `Vdlm2Message`.
     pub fn clear_noise_level(&mut self) {
         trace!("Clearing the noise level for {:?}", &self);
@@ -178,7 +179,7 @@ impl AcarsVdlm2Message {
             AcarsVdlm2Message::AcarsMessage(_) => {}
         }
     }
-
+    
     /// Clears the `octets_corrected_by_fec` field from a `Vdlm2Message`.
     pub fn clear_octets_corrected_by_fec(&mut self) {
         trace!("Clearing the octets corrected by fec for {:?}", &self);
@@ -187,7 +188,7 @@ impl AcarsVdlm2Message {
             AcarsVdlm2Message::AcarsMessage(_) => {}
         }
     }
-
+    
     /// Clears the `sig_level` field from a `Vdlm2Message`.
     pub fn clear_sig_level(&mut self) {
         trace!("Clearing the signal level for {:?}", &self);
@@ -196,31 +197,31 @@ impl AcarsVdlm2Message {
             AcarsVdlm2Message::AcarsMessage(_) => {}
         }
     }
-
+    
     /// Clears the `channel` field from a `AcarsMessage`.
     pub fn clear_channel(&mut self) {
         trace!("Clearing the channel for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(_) => {}
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_channel(),
+            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_channel()
         }
     }
-
+    
     /// Clears the `error` field from a `AcarsMessage`.
     pub fn clear_error(&mut self) {
         trace!("Clearing the error field for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(_) => {}
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_error(),
+            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_error()
         }
     }
-
+    
     /// Clears the `level` field from a `AcarsMessage`.
     pub fn clear_level(&mut self) {
         trace!("Clearing the level field for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(_) => {}
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_level(),
+            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_level()
         }
     }
 }
