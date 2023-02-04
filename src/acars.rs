@@ -1,6 +1,5 @@
-use serde::{Serialize, Deserialize};
 use crate::{AppDetails, MessageResult};
-
+use serde::{Deserialize, Serialize};
 
 /// Trait for performing a decode if you wish to apply it to types other than the defaults done in this library.
 ///
@@ -30,17 +29,16 @@ impl NewAcarsMessage for str {
 }
 
 impl AcarsMessage {
-
     /// Converts `AcarsMessage` to `String`.
     pub fn to_string(&self) -> MessageResult<String> {
         serde_json::to_string(self)
     }
-    
+
     /// Converts `AcarsMessage` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
         match serde_json::to_string(self) {
             Err(to_string_error) => Err(to_string_error),
-            Ok(string) => Ok(format!("{}\n", string))
+            Ok(string) => Ok(format!("{}\n", string)),
         }
     }
 
@@ -50,17 +48,17 @@ impl AcarsMessage {
     pub fn to_bytes(&self) -> MessageResult<Vec<u8>> {
         match self.to_string() {
             Err(conversion_failed) => Err(conversion_failed),
-            Ok(string) => Ok(string.into_bytes())
+            Ok(string) => Ok(string.into_bytes()),
         }
     }
-    
+
     /// Converts `AcarsMessage` to a `String` terminated with a `\n` and encoded as bytes.
     ///
     /// The output is returned as a `Vec<u8>`.
     pub fn to_bytes_newline(&self) -> MessageResult<Vec<u8>> {
         match self.to_string_newline() {
             Err(conversion_failed) => Err(conversion_failed),
-            Ok(string) => Ok(string.into_bytes())
+            Ok(string) => Ok(string.into_bytes()),
         }
     }
 
@@ -92,7 +90,7 @@ impl AcarsMessage {
     pub fn set_proxy_details(&mut self, proxied_by: &str, acars_router_version: &str) {
         match self.app.as_mut() {
             None => self.app = Some(AppDetails::new(proxied_by, acars_router_version)),
-            Some(app_details) => app_details.proxy(proxied_by, acars_router_version)
+            Some(app_details) => app_details.proxy(proxied_by, acars_router_version),
         }
     }
 
@@ -103,15 +101,15 @@ impl AcarsMessage {
     pub fn get_time(&self) -> Option<f64> {
         self.timestamp.as_ref().copied()
     }
-    
+
     pub fn clear_channel(&mut self) {
         self.channel = None;
     }
-    
+
     pub fn clear_error(&mut self) {
         self.error = None;
     }
-    
+
     pub fn clear_level(&mut self) {
         self.level = None;
     }
@@ -156,14 +154,14 @@ pub struct AcarsMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub msgno: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub flight: Option<String>
+    pub flight: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PartialOrd)]
 #[serde(untagged)]
 pub enum LevelType {
     I32(i32),
-    Float64(f64)
+    Float64(f64),
 }
 
 impl Default for LevelType {
@@ -176,7 +174,7 @@ impl Default for LevelType {
 #[serde(untagged)]
 pub enum AckType {
     String(String),
-    Bool(bool)
+    Bool(bool),
 }
 
 impl Default for AckType {
