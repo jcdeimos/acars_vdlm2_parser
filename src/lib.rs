@@ -1,13 +1,16 @@
 extern crate serde;
 extern crate serde_json;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
 use crate::acars::AcarsMessage;
+use crate::adsb_json::AsdbJsonMessage;
 use crate::vdlm2::Vdlm2Message;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub mod acars;
+pub mod adsb_json;
 pub mod vdlm2;
 
 /// Common return type for all serialisation/deserialisation functions.
@@ -19,45 +22,45 @@ pub type MessageResult<T> = Result<T, serde_json::Error>;
 ///
 /// The originating data must be in JSON format and have support for providing a `str`, and will not consume the source.
 pub trait DecodeMessage {
-    fn decode_message(&self) -> MessageResult<AcarsVdlm2Message>;
+    fn decode_message(&self) -> MessageResult<DecodedMessage>;
 }
 
-/// Provides functionality for decoding a `String` to `AcarsVdlm2Message`.
+/// Provides functionality for decoding a `String` to `DecodedMessage`.
 ///
 /// This does not consume the `String`.
 impl DecodeMessage for String {
-    fn decode_message(&self) -> MessageResult<AcarsVdlm2Message> {
+    fn decode_message(&self) -> MessageResult<DecodedMessage> {
         serde_json::from_str(self)
     }
 }
 
-/// Provides functionality for decoding a `str` to `AcarsVdlm2Message`.
+/// Provides functionality for decoding a `str` to `DecodedMessage`.
 ///
 /// This does not consume the `str`.
 impl DecodeMessage for str {
-    fn decode_message(&self) -> MessageResult<AcarsVdlm2Message> {
+    fn decode_message(&self) -> MessageResult<DecodedMessage> {
         serde_json::from_str(self)
     }
 }
 
-/// Implementation of `AcarsVdlm2Message`.
-impl AcarsVdlm2Message {
-    /// Converts `AcarsVdlm2Message` to `String`.
+/// Implementation of `DecodedMessage`.
+impl DecodedMessage {
+    /// Converts `DecodedMessage` to `String`.
     pub fn to_string(&self) -> MessageResult<String> {
         trace!("Converting {:?} to a string", &self);
         serde_json::to_string(self)
     }
-    
-    /// Converts `AcarsVdlm2Message` to `String` and appends a `\n` to the end.
+
+    /// Converts `DecodedMessage` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
         trace!("Converting {:?} to a string and appending a newline", &self);
         match serde_json::to_string(self) {
             Err(to_string_error) => Err(to_string_error),
-            Ok(string) => Ok(format!("{}\n", string))
+            Ok(string) => Ok(format!("{}\n", string)),
         }
     }
 
-    /// Converts `AcarsVdlm2Message` to a `String` encoded as bytes.
+    /// Converts `DecodedMessage` to a `String` encoded as bytes.
     ///
     /// The output is returned as a `Vec<u8>`.
     pub fn to_bytes(&self) -> MessageResult<Vec<u8>> {
@@ -67,15 +70,18 @@ impl AcarsVdlm2Message {
             Ok(string) => Ok(string.into_bytes()),
         }
     }
-    
-    /// Converts `AcarsVdlm2Message` to a `String` terminated with a `\n` and encoded as bytes.
+
+    /// Converts `DecodedMessage` to a `String` terminated with a `\n` and encoded as bytes.
     ///
     /// The output is returned as a `Vec<u8>`.
     pub fn to_bytes_newline(&self) -> MessageResult<Vec<u8>> {
-        trace!("Converting {:?} into a string, appending a newline and encoding as bytes", &self);
+        trace!(
+            "Converting {:?} into a string, appending a newline and encoding as bytes",
+            &self
+        );
         match self.to_string_newline() {
             Err(conversion_failed) => Err(conversion_failed),
-            Ok(string) => Ok(string.into_bytes())
+            Ok(string) => Ok(string.into_bytes()),
         }
     }
 
@@ -83,21 +89,23 @@ impl AcarsVdlm2Message {
     pub fn clear_station_name(&mut self) {
         trace!("Clearing the station name for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
-                vdlm2.clear_station_name(),
-            AcarsVdlm2Message::AcarsMessage(acars) =>
-                acars.clear_station_name(),
+            DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_station_name(),
+            DecodedMessage::AcarsMessage(acars) => acars.clear_station_name(),
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
 
     /// Sets a station name to the provided value for either `Vdlm2Message` or `AcarsMessage`.
     pub fn set_station_name(&mut self, station_name: &str) {
-        trace!("Setting the station name to {} for {:?}", station_name, &self);
+        trace!(
+            "Setting the station name to {} for {:?}",
+            station_name,
+            &self
+        );
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
-                vdlm2.set_station_name(station_name),
-            AcarsVdlm2Message::AcarsMessage(acars) =>
-                acars.set_station_name(station_name),
+            DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.set_station_name(station_name),
+            DecodedMessage::AcarsMessage(acars) => acars.set_station_name(station_name),
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
 
@@ -105,30 +113,30 @@ impl AcarsVdlm2Message {
     pub fn clear_proxy_details(&mut self) {
         trace!("Clearing the proxy details for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
-                vdlm2.clear_proxy_details(),
-            AcarsVdlm2Message::AcarsMessage(acars) =>
-                acars.clear_proxy_details(),
+            DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_proxy_details(),
+            DecodedMessage::AcarsMessage(acars) => acars.clear_proxy_details(),
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
 
     /// Sets proxy details to the provided details and sets `proxied` to true.
     ///
     /// This invokes `AppDetails::new()` for either `Vdlm2Message` or `AcarsMessage` and updates the record.
-    pub fn set_proxy_details(
-        &mut self,
-        proxied_by: &str,
-        acars_router_version: &str,
-    ) {
-        trace!("Setting the proxy details for {:?} to include proxy {} and router version {}",
-            &self, proxied_by, acars_router_version);
+    pub fn set_proxy_details(&mut self, proxied_by: &str, acars_router_version: &str) {
+        trace!(
+            "Setting the proxy details for {:?} to include proxy {} and router version {}",
+            &self,
+            proxied_by,
+            acars_router_version
+        );
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => {
+            DecodedMessage::Vdlm2Message(vdlm2) => {
                 vdlm2.set_proxy_details(proxied_by, acars_router_version)
             }
-            AcarsVdlm2Message::AcarsMessage(acars) => {
+            DecodedMessage::AcarsMessage(acars) => {
                 acars.set_proxy_details(proxied_by, acars_router_version)
             }
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
 
@@ -136,10 +144,9 @@ impl AcarsVdlm2Message {
     pub fn clear_time(&mut self) {
         trace!("Clearing the time for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
-                vdlm2.clear_time(),
-            AcarsVdlm2Message::AcarsMessage(acars) =>
-                acars.clear_time(),
+            DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_time(),
+            DecodedMessage::AcarsMessage(acars) => acars.clear_time(),
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
 
@@ -147,82 +154,89 @@ impl AcarsVdlm2Message {
     pub fn get_time(&self) -> Option<f64> {
         trace!("Getting the time from {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
-                vdlm2.get_time(),
-            AcarsVdlm2Message::AcarsMessage(acars) =>
-                acars.get_time(),
+            DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.get_time(),
+            DecodedMessage::AcarsMessage(acars) => acars.get_time(),
+            DecodedMessage::AsdbJsonMessage(adsb_json) => adsb_json.get_time(),
         }
     }
-    
+
     /// Clears the `freq_skew` field from a `Vdlm2Message`.
     pub fn clear_freq_skew(&mut self) {
         trace!("Clearing the frequency skew for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_freq_skew(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
+            DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_freq_skew(),
+            DecodedMessage::AcarsMessage(_) => {}
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
-    
+
     /// Clears the `hdr_bits_fixed` field from a `Vdlm2Message`.
     pub fn clear_hdr_bits_fixed(&mut self) {
         trace!("Clearing the hdr bits fixed for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_hdr_bits_fixed(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
+            DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_hdr_bits_fixed(),
+            DecodedMessage::AcarsMessage(_) => {}
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
-    
+
     /// Clears the `noise_level` field from a `Vdlm2Message`.
     pub fn clear_noise_level(&mut self) {
         trace!("Clearing the noise level for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_noise_level(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
+            DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_noise_level(),
+            DecodedMessage::AcarsMessage(_) => {}
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
-    
+
     /// Clears the `octets_corrected_by_fec` field from a `Vdlm2Message`.
     pub fn clear_octets_corrected_by_fec(&mut self) {
         trace!("Clearing the octets corrected by fec for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_octets_corrected_by_fec(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
+            DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_octets_corrected_by_fec(),
+            DecodedMessage::AcarsMessage(_) => {}
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
-    
+
     /// Clears the `sig_level` field from a `Vdlm2Message`.
     pub fn clear_sig_level(&mut self) {
         trace!("Clearing the signal level for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_sig_level(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
+            DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_sig_level(),
+            DecodedMessage::AcarsMessage(_) => {}
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
-    
+
     /// Clears the `channel` field from a `AcarsMessage`.
     pub fn clear_channel(&mut self) {
         trace!("Clearing the channel for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(_) => {}
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_channel()
+            DecodedMessage::Vdlm2Message(_) => {}
+            DecodedMessage::AcarsMessage(acars) => acars.clear_channel(),
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
-    
+
     /// Clears the `error` field from a `AcarsMessage`.
     pub fn clear_error(&mut self) {
         trace!("Clearing the error field for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(_) => {}
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_error()
+            DecodedMessage::Vdlm2Message(_) => {}
+            DecodedMessage::AcarsMessage(acars) => acars.clear_error(),
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
-    
+
     /// Clears the `level` field from a `AcarsMessage`.
     pub fn clear_level(&mut self) {
         trace!("Clearing the level field for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(_) => {}
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_level()
+            DecodedMessage::Vdlm2Message(_) => {}
+            DecodedMessage::AcarsMessage(acars) => acars.clear_level(),
+            DecodedMessage::AsdbJsonMessage(_) => {}
         }
     }
 }
@@ -234,12 +248,13 @@ impl AcarsVdlm2Message {
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
-pub enum AcarsVdlm2Message {
+pub enum DecodedMessage {
     Vdlm2Message(Vdlm2Message),
     AcarsMessage(AcarsMessage),
+    AsdbJsonMessage(AsdbJsonMessage),
 }
 
-impl Default for AcarsVdlm2Message {
+impl Default for DecodedMessage {
     fn default() -> Self {
         Self::Vdlm2Message(Default::default())
     }
