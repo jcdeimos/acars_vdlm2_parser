@@ -1,7 +1,7 @@
-use std::num::ParseFloatError;
-use serde::{Serialize, Deserialize};
+use crate::{AppDetails, DeserializatonError, MessageResult};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use crate::{AppDetails, MessageResult};
+use std::num::ParseFloatError;
 
 /// Trait for performing a decode if you wish to apply it to types other than the defaults done in this library.
 ///
@@ -17,7 +17,10 @@ pub trait NewVdlm2Message {
 /// This does not consume the `String`.
 impl NewVdlm2Message for String {
     fn to_vdlm2(&self) -> MessageResult<Vdlm2Message> {
-        serde_json::from_str(self)
+        match serde_json::from_str(self) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(DeserializatonError::SerdeError(e)),
+        }
     }
 }
 
@@ -26,25 +29,29 @@ impl NewVdlm2Message for String {
 /// This does not consume the `str`.
 impl NewVdlm2Message for str {
     fn to_vdlm2(&self) -> MessageResult<Vdlm2Message> {
-        serde_json::from_str(self)
+        match serde_json::from_str(self) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(DeserializatonError::SerdeError(e)),
+        }
     }
 }
 
 /// Implementation of `Vdlm2Message`.
 impl Vdlm2Message {
-
     /// Converts `Vdlm2Message` to `String`.
     pub fn to_string(&self) -> MessageResult<String> {
-        serde_json::to_string(self)
+        match serde_json::to_string(self) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(DeserializatonError::SerdeError(e)),
+        }
     }
-
 
     /// Converts `Vdlm2Message` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
         let data = serde_json::to_string(self);
         match data {
-            Err(to_string_error) => Err(to_string_error),
-            Ok(string) => Ok(format!("{}\n", string))
+            Err(to_string_error) => Err(DeserializatonError::SerdeError(to_string_error)),
+            Ok(string) => Ok(format!("{}\n", string)),
         }
     }
 
@@ -55,10 +62,9 @@ impl Vdlm2Message {
         let string_conversion: MessageResult<String> = self.to_string();
         match string_conversion {
             Err(conversion_failed) => Err(conversion_failed),
-            Ok(string) => Ok(string.into_bytes())
+            Ok(string) => Ok(string.into_bytes()),
         }
     }
-
 
     /// Converts `Vdlm2Message` to a `String` terminated with a `\n` and encoded as bytes.
     ///
@@ -67,7 +73,7 @@ impl Vdlm2Message {
         let string_conversion: MessageResult<String> = self.to_string_newline();
         match string_conversion {
             Err(conversion_failed) => Err(conversion_failed),
-            Ok(string) => Ok(string.into_bytes())
+            Ok(string) => Ok(string.into_bytes()),
         }
     }
 
@@ -102,7 +108,7 @@ impl Vdlm2Message {
     pub fn set_proxy_details(&mut self, proxied_by: &str, acars_router_version: &str) {
         match self.vdl2.app.as_mut() {
             None => self.vdl2.app = Some(AppDetails::new(proxied_by, acars_router_version)),
-            Some(app_details) => app_details.proxy(proxied_by, acars_router_version)
+            Some(app_details) => app_details.proxy(proxied_by, acars_router_version),
         }
     }
 
@@ -119,32 +125,27 @@ impl Vdlm2Message {
                 let parse_f64: Result<f64, ParseFloatError> = build_float_string.parse::<f64>();
                 match parse_f64 {
                     Err(_) => None,
-                    Ok(value) => Some(value)
+                    Ok(value) => Some(value),
                 }
             }
         }
     }
 
-
     pub fn clear_freq_skew(&mut self) {
         self.vdl2.freq_skew = None;
     }
-
 
     pub fn clear_hdr_bits_fixed(&mut self) {
         self.vdl2.hdr_bits_fixed = None;
     }
 
-
     pub fn clear_noise_level(&mut self) {
         self.vdl2.noise_level = None;
     }
 
-
     pub fn clear_octets_corrected_by_fec(&mut self) {
         self.vdl2.octets_corrected_by_fec = None;
     }
-
 
     pub fn clear_sig_level(&mut self) {
         self.vdl2.sig_level = None;
@@ -153,7 +154,7 @@ impl Vdlm2Message {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Vdlm2Message {
-    pub vdl2: Vdlm2Body
+    pub vdl2: Vdlm2Body,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -177,13 +178,13 @@ pub struct Vdlm2Body {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub station: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub t: Option<TBlock>
+    pub t: Option<TBlock>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct TBlock {
     pub sec: u64,
-    pub usec: u64
+    pub usec: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -205,14 +206,14 @@ pub struct AvlcData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub poll: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub acars: Option<AvlcAcars>
+    pub acars: Option<AvlcAcars>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct DstBlock {
     pub addr: String,
     #[serde(rename = "type")]
-    pub vehicle_type: String
+    pub vehicle_type: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
@@ -220,7 +221,7 @@ pub struct SrcBlock {
     pub addr: String,
     pub status: String,
     #[serde(rename = "type")]
-    pub source_type: String
+    pub source_type: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PartialOrd, Default)]
@@ -232,13 +233,13 @@ pub struct XidBlock {
     pub xid_type: String,
     #[serde(rename = "type_descr")]
     pub xid_type_descr: String,
-    pub vdl_params: Vec<XidParam>
+    pub vdl_params: Vec<XidParam>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PartialOrd, Default)]
 pub struct XidParam {
     pub name: String,
-    pub value: ParamValueType
+    pub value: ParamValueType,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PartialOrd)]
@@ -251,27 +252,27 @@ pub enum ParamValueType {
     I32(i32),
     RetrySequence {
         retry: i32,
-        seq: i32
+        seq: i32,
     },
     AltLoc {
         alt: i32,
-        loc: CoOrdinates
+        loc: CoOrdinates,
     },
     ProtocolViolation {
         cause_code: u16,
         cause_descr: String,
         delay: u16,
-        additional_data: Vec<u16>
+        additional_data: Vec<u16>,
     },
     LCRCause {
         cause_code: u16,
         cause_descr: String,
-        delay: u16
+        delay: u16,
     },
     AutoTune {
         freq_mhz: f64,
-        modulation_support: Vec<String>
-    }
+        modulation_support: Vec<String>,
+    },
 }
 
 impl Default for ParamValueType {
@@ -283,7 +284,7 @@ impl Default for ParamValueType {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PartialOrd, Default)]
 pub struct CoOrdinates {
     lat: f64,
-    lon: f64
+    lon: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -308,7 +309,7 @@ pub struct AvlcAcars {
     pub mfi: Option<String>,
     pub msg_text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub arinc622: Option<Arinc622>
+    pub arinc622: Option<Arinc622>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -320,21 +321,19 @@ pub struct Arinc622 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub adsc: Option<AdscEntry>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cpdlc: Option<CPDLC>
+    pub cpdlc: Option<CPDLC>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AdscEntry {
     pub tags: Vec<Value>,
-    pub err: bool
+    pub err: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(rename_all = "snake_case")]
 pub enum AdscTagGroups {
-    ReportInterval {
-        interval_secs: u16
-    }
+    ReportInterval { interval_secs: u16 },
 }
 
 impl Default for AdscTagGroups {
@@ -348,13 +347,13 @@ pub struct AdscWaypoint {
     pub lat: f64,
     pub lon: f64,
     pub alt: i32,
-    pub eta_sec: Option<i16>
+    pub eta_sec: Option<i16>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct NonCompMessageGroup {
     pub noncomp_tag: i64,
-    pub noncomp_cause: String
+    pub noncomp_cause: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -365,45 +364,45 @@ pub struct AdscEventData {
     pub ts_sec: f64,
     pub tcas_avail: bool,
     pub nav_redundancy: bool,
-    pub pos_accuracy_nm: f64
+    pub pos_accuracy_nm: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct CPDLC {
     pub err: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub atc_downlink_msg: Option<ATCDownlinkMsg>
+    pub atc_downlink_msg: Option<ATCDownlinkMsg>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct ATCDownlinkMsg {
     pub header: ATCDownlinkMsgHeader,
-    pub atc_downlink_msg_element_id: ATCDownlinkMsgElementID
+    pub atc_downlink_msg_element_id: ATCDownlinkMsgElementID,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct ATCDownlinkTimestamp {
     pub hour: u16,
     pub min: u16,
-    pub sec: u16
+    pub sec: u16,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct ATCDownlinkData {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ver_num: Option<u16>
+    pub ver_num: Option<u16>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct ATCDownlinkMsgHeader {
     pub msg_id: u16,
     pub msg_ref: Option<u16>,
-    pub timestamp: ATCDownlinkTimestamp
+    pub timestamp: ATCDownlinkTimestamp,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct ATCDownlinkMsgElementID {
     pub choice_label: String,
     pub choice: String,
-    pub data: ATCDownlinkData
+    pub data: ATCDownlinkData,
 }

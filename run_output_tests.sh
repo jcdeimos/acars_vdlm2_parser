@@ -1,4 +1,4 @@
-# /bin/sh
+#! /bin/sh
 
 echo "Running Ignored tests without output capturing."
 echo "The ignored tests are verbose tests to show exact parsing error messages."

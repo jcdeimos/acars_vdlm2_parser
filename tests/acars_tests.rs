@@ -1,8 +1,12 @@
 mod common;
 
-use std::error::Error;
+use crate::common::{
+    combine_files_of_message_type, compare_errors, load_files_of_message_type,
+    process_file_as_acars, MessageType,
+};
 use acars_vdlm2_parser::acars::{AcarsMessage, NewAcarsMessage};
-use crate::common::{combine_files_of_message_type, compare_errors, load_files_of_message_type, MessageType, process_file_as_acars};
+use acars_vdlm2_parser::DeserializatonError;
+use std::error::Error;
 
 /// This test will ingest contents from the acars sample files as a message per line to a `Vec<String>`.
 /// It combines the two files together into a single `Vec<String>` for iterating through.
@@ -16,9 +20,14 @@ fn test_acars_parsing() -> Result<(), Box<dyn Error>> {
             let mut valid_acars_messages: Vec<AcarsMessage> = Vec::new();
             let mut failed_decodes: Vec<String> = Vec::new();
             for line in acars_messages {
-                match line.to_acars() {
-                    Err(_) => failed_decodes.push(line),
-                    Ok(acars_message) => valid_acars_messages.push(acars_message),
+                // determine if line is a string
+                match line {
+                    common::TestFileType::String(line_as_string) => match line_as_string.to_acars()
+                    {
+                        Err(_) => failed_decodes.push(line_as_string),
+                        Ok(acars_message) => valid_acars_messages.push(acars_message),
+                    },
+                    common::TestFileType::U8(_) => {}
                 }
             }
             for message in valid_acars_messages {
@@ -26,7 +35,11 @@ fn test_acars_parsing() -> Result<(), Box<dyn Error>> {
                 assert!(message.to_bytes().as_ref().err().is_none());
             }
             for line in failed_decodes {
-                compare_errors(line.to_acars().err(), serde_json::from_str(&line), &line);
+                compare_errors(
+                    line.to_acars().err(),
+                    serde_json::from_str(&line).map_err(|e| DeserializatonError::SerdeError(e)),
+                    &line,
+                );
             }
             Ok(())
         }
@@ -44,7 +57,7 @@ fn show_acars_ingest() -> Result<(), Box<dyn Error>> {
         Ok(acars_files) => {
             for file in acars_files {
                 println!("Testing the contents from file: {}", file.name);
-                process_file_as_acars(&file.contents);
+                process_file_as_acars(&file.contents.into_iter().collect::<Vec<String>>());
             }
             Ok(())
         }

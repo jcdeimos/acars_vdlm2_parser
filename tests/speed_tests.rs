@@ -3,9 +3,10 @@ mod common;
 use crate::common::{
     combine_files_of_message_type, test_enum_serialisation, test_value_serialisation,
     ContentDuplicator, MessageType, RunDurations, SerialisationTarget, SpeedTestComparisons,
-    SpeedTestType, Stopwatch, StopwatchType,
+    SpeedTestType, Stopwatch, StopwatchType, TestFileType,
 };
 use acars_vdlm2_parser::{DecodeMessage, DecodedMessage};
+use bincode;
 use byte_unit::Byte;
 use chrono::Utc;
 use rand::prelude::SliceRandom;
@@ -82,7 +83,8 @@ impl SpeedTest for i64 {
                     Utc::now(),
                     self.separate_with_commas()
                 );
-                let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
+                let mut test_message_queue: Vec<TestFileType> =
+                    all_messages.duplicate_contents(self);
                 let queue_memory_size: Byte =
                     Byte::from_bytes(size_of_val(&*test_message_queue) as u128);
                 run_durations.queue_memory_size = queue_memory_size;
@@ -102,12 +104,29 @@ impl SpeedTest for i64 {
                 let mut deserialisation_run_stopwatch: Stopwatch =
                     Stopwatch::start(StopwatchType::LargeQueueDeser);
                 test_message_queue.par_iter().for_each(|entry| {
-                    if let Ok(decoded_message) = entry.decode_message() {
-                        successfully_decoded_items
-                            .lock()
-                            .unwrap()
-                            .push(decoded_message);
+                    match entry {
+                        common::TestFileType::String(line_as_string) => {
+                            match line_as_string.decode_message() {
+                                Err(_) => {}
+                                Ok(json_message) => successfully_decoded_items
+                                    .lock()
+                                    .unwrap()
+                                    .push(json_message),
+                            }
+                        }
+                        common::TestFileType::U8(line_as_u8) => match line_as_u8.decode_message() {
+                            Err(_) => {}
+                            Ok(bit_message) => {
+                                successfully_decoded_items.lock().unwrap().push(bit_message)
+                            }
+                        },
                     }
+                    // if let Ok(decoded_message) = entry.decode_message() {
+                    //     successfully_decoded_items
+                    //         .lock()
+                    //         .unwrap()
+                    //         .push(decoded_message);
+                    // }
                 });
                 deserialisation_run_stopwatch.stop();
                 let mut successfully_decoded_items_lock: MutexGuard<Vec<DecodedMessage>> =
@@ -154,7 +173,8 @@ impl SpeedTest for i64 {
                     Utc::now(),
                     self.separate_with_commas()
                 );
-                let mut test_message_queue: Vec<String> = all_messages.duplicate_contents(self);
+                let mut test_message_queue: Vec<TestFileType> =
+                    all_messages.duplicate_contents(self);
                 let queue_memory_size: Byte =
                     Byte::from_bytes(size_of_val(&*test_message_queue) as u128);
                 run_durations.queue_memory_size = queue_memory_size;
@@ -173,12 +193,23 @@ impl SpeedTest for i64 {
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
                 let mut deserialisation_run_stopwatch: Stopwatch =
                     Stopwatch::start(StopwatchType::LargeQueueDeser);
-                test_message_queue.par_iter().for_each(|entry| {
-                    if let Ok(decoded_message) = serde_json::from_str::<Value>(entry) {
-                        successfully_decoded_items
-                            .lock()
-                            .unwrap()
-                            .push(decoded_message);
+                test_message_queue.par_iter().for_each(|entry| match entry {
+                    TestFileType::String(line_as_string) => {
+                        if let Ok(decoded_message) = serde_json::from_str::<Value>(&line_as_string)
+                        {
+                            successfully_decoded_items
+                                .lock()
+                                .unwrap()
+                                .push(decoded_message);
+                        }
+                    }
+                    TestFileType::U8(line_as_bytes) => {
+                        if let Ok(decoded_message) = bincode::deserialize::<Value>(&line_as_bytes) {
+                            successfully_decoded_items
+                                .lock()
+                                .unwrap()
+                                .push(decoded_message);
+                        }
                     }
                 });
                 deserialisation_run_stopwatch.stop();

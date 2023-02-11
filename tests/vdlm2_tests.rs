@@ -1,8 +1,12 @@
 mod common;
 
-use std::error::Error;
+use crate::common::{
+    combine_files_of_message_type, compare_errors, load_files_of_message_type,
+    process_file_as_vdlm2, MessageType,
+};
 use acars_vdlm2_parser::vdlm2::{NewVdlm2Message, Vdlm2Message};
-use crate::common::{combine_files_of_message_type, compare_errors, load_files_of_message_type, MessageType, process_file_as_vdlm2};
+use acars_vdlm2_parser::DeserializatonError;
+use std::error::Error;
 
 /// This test will ingest contents from the vdlm2 sample files as a message per line to a `Vec<String>`.
 /// It combines the two files together into a single `Vec<String>` for iterating through.
@@ -16,16 +20,25 @@ fn test_vdlm2_parsing() -> Result<(), Box<dyn Error>> {
             let mut valid_vdlm2_messages: Vec<Vdlm2Message> = Vec::new();
             let mut failed_decodes: Vec<String> = Vec::new();
             for line in vdlm2_messages {
-                match line.to_vdlm2() {
-                    Err(_) => failed_decodes.push(line),
-                    Ok(valid_entry) => valid_vdlm2_messages.push(valid_entry),
+                match line {
+                    common::TestFileType::String(line_as_string) => {
+                        match line_as_string.to_vdlm2() {
+                            Err(_) => failed_decodes.push(line_as_string),
+                            Ok(vdlm2_message) => valid_vdlm2_messages.push(vdlm2_message),
+                        }
+                    }
+                    common::TestFileType::U8(_) => {}
                 }
             }
             for message in valid_vdlm2_messages {
                 assert!(message.to_string().as_ref().err().is_none());
             }
             for line in failed_decodes {
-                compare_errors(line.to_vdlm2().err(), serde_json::from_str(&line), &line);
+                compare_errors(
+                    line.to_vdlm2().err(),
+                    serde_json::from_str(&line).map_err(|e| DeserializatonError::SerdeError(e)),
+                    &line,
+                );
             }
             Ok(())
         }
@@ -43,7 +56,7 @@ fn show_vdlm2_ingest() -> Result<(), Box<dyn Error>> {
         Ok(vdlm2_files) => {
             for file in vdlm2_files {
                 println!("Testing the contents from file: {}", file.name);
-                process_file_as_vdlm2(&file.contents);
+                process_file_as_vdlm2(&file.contents.into_iter().collect::<Vec<String>>());
             }
             Ok(())
         }

@@ -1,6 +1,7 @@
 mod common;
 
-use acars_vdlm2_parser::adsb_json::{AsdbJsonMessage, NewAsdbJsonMessage};
+use acars_vdlm2_parser::adsb_json::{AdsbJsonMessage, NewAdsbJsonMessage};
+use acars_vdlm2_parser::DeserializatonError;
 use std::error::Error;
 
 use crate::common::{
@@ -13,16 +14,21 @@ use crate::common::{
 /// Then it will cycle them into `Vec<ADSBMessage>` and back to `String`.
 /// It validates that there are no errors going `String` -> `ADSBMessage` and `ADSBMessage` -> `String`.
 #[test]
-fn test_adsb_parsing() -> Result<(), Box<dyn Error>> {
-    match combine_files_of_message_type(MessageType::AsdbJson) {
+fn test_adsb_json_parsing() -> Result<(), Box<dyn Error>> {
+    match combine_files_of_message_type(MessageType::AdsbJson) {
         Err(load_failed) => Err(load_failed),
         Ok(adsb_messages) => {
-            let mut valid_adsb_messages: Vec<AsdbJsonMessage> = Vec::new();
+            let mut valid_adsb_messages: Vec<AdsbJsonMessage> = Vec::new();
             let mut failed_decodes: Vec<String> = Vec::new();
             for line in adsb_messages {
-                match line.to_adsb() {
-                    Err(_) => failed_decodes.push(line),
-                    Ok(adsb_message) => valid_adsb_messages.push(adsb_message),
+                match line {
+                    common::TestFileType::String(line_as_string) => {
+                        match line_as_string.to_adsb() {
+                            Err(_) => failed_decodes.push(line_as_string),
+                            Ok(acars_message) => valid_adsb_messages.push(acars_message),
+                        }
+                    }
+                    common::TestFileType::U8(_) => {}
                 }
             }
             println!("Size of bad messages: {}", failed_decodes.len());
@@ -31,7 +37,11 @@ fn test_adsb_parsing() -> Result<(), Box<dyn Error>> {
                 assert!(message.to_bytes().as_ref().err().is_none());
             }
             for line in failed_decodes {
-                compare_errors(line.to_adsb().err(), serde_json::from_str(&line), &line);
+                compare_errors(
+                    line.to_adsb().err(),
+                    serde_json::from_str(&line).map_err(|e| DeserializatonError::SerdeError(e)),
+                    &line,
+                );
             }
             Ok(())
         }
@@ -43,13 +53,13 @@ fn test_adsb_parsing() -> Result<(), Box<dyn Error>> {
 #[test]
 #[ignore]
 fn show_adsb_json_injest() -> Result<(), Box<dyn Error>> {
-    println!("Showing vdlm2 ingest errors");
-    match load_files_of_message_type(MessageType::AsdbJson) {
+    println!("Showing ADSB JSON ingest errors");
+    match load_files_of_message_type(MessageType::AdsbJson) {
         Err(load_failed) => Err(load_failed),
-        Ok(vdlm2_files) => {
-            for file in vdlm2_files {
+        Ok(adsb_json_files) => {
+            for file in adsb_json_files {
                 println!("Testing the contents from file: {}", file.name);
-                process_file_as_adsb_json(&file.contents);
+                process_file_as_adsb_json(&file.contents.into_iter().collect::<Vec<String>>());
             }
             Ok(())
         }

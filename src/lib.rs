@@ -4,19 +4,39 @@ extern crate serde_json;
 extern crate log;
 
 use crate::acars::AcarsMessage;
-use crate::adsb_json::AsdbJsonMessage;
+use crate::adsb_beast::AdsbBeastMessage;
+use crate::adsb_json::AdsbJsonMessage;
 use crate::vdlm2::Vdlm2Message;
+use bincode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub mod acars;
+pub mod adsb_beast;
 pub mod adsb_json;
 pub mod vdlm2;
+
+#[derive(Debug)]
+pub enum DeserializatonError {
+    SerdeError(serde_json::error::Error),
+    BoxError(Box<bincode::ErrorKind>),
+    All(serde_json::error::Error, Box<bincode::ErrorKind>),
+}
+
+impl std::fmt::Display for DeserializatonError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            DeserializatonError::SerdeError(e) => write!(f, "Serde error: {}", e),
+            DeserializatonError::BoxError(e) => write!(f, "Box error: {}", e),
+            DeserializatonError::All(e, e2) => write!(f, "Serde error: {}, Box error: {}", e, e2),
+        }
+    }
+}
 
 /// Common return type for all serialisation/deserialisation functions.
 ///
 /// This serves as a wrapper for `serde_json::Error` as the Error type.
-pub type MessageResult<T> = Result<T, serde_json::Error>;
+pub type MessageResult<T> = Result<T, DeserializatonError>;
 
 /// Trait for performing a decode if you wish to apply it to types other than the defaults done in this library.
 ///
@@ -30,7 +50,22 @@ pub trait DecodeMessage {
 /// This does not consume the `String`.
 impl DecodeMessage for String {
     fn decode_message(&self) -> MessageResult<DecodedMessage> {
-        serde_json::from_str(self)
+        let serde = serde_json::from_str(self);
+
+        if !serde.is_err() {
+            return serde.map_err(|e| DeserializatonError::SerdeError(e));
+        }
+
+        let bincode = bincode::deserialize::<DecodedMessage>(self.as_bytes());
+
+        if !bincode.is_err() {
+            return bincode.map_err(|e| DeserializatonError::BoxError(e));
+        }
+
+        Err(DeserializatonError::All(
+            serde.unwrap_err(),
+            bincode.unwrap_err(),
+        ))
     }
 }
 
@@ -39,7 +74,43 @@ impl DecodeMessage for String {
 /// This does not consume the `str`.
 impl DecodeMessage for str {
     fn decode_message(&self) -> MessageResult<DecodedMessage> {
-        serde_json::from_str(self)
+        let serde = serde_json::from_str(self);
+
+        if !serde.is_err() {
+            return serde.map_err(|e| DeserializatonError::SerdeError(e));
+        }
+
+        let bincode = bincode::deserialize::<DecodedMessage>(self.as_bytes());
+
+        if !bincode.is_err() {
+            return bincode.map_err(|e| DeserializatonError::BoxError(e));
+        }
+
+        Err(DeserializatonError::All(
+            serde.unwrap_err(),
+            bincode.unwrap_err(),
+        ))
+    }
+}
+
+impl DecodeMessage for Vec<u8> {
+    fn decode_message(&self) -> MessageResult<DecodedMessage> {
+        let serde = serde_json::from_slice(self);
+
+        if !serde.is_err() {
+            return serde.map_err(|e| DeserializatonError::SerdeError(e));
+        }
+
+        let bincode = bincode::deserialize::<DecodedMessage>(self);
+
+        if !bincode.is_err() {
+            return bincode.map_err(|e| DeserializatonError::BoxError(e));
+        }
+
+        Err(DeserializatonError::All(
+            serde.unwrap_err(),
+            bincode.unwrap_err(),
+        ))
     }
 }
 
@@ -48,14 +119,17 @@ impl DecodedMessage {
     /// Converts `DecodedMessage` to `String`.
     pub fn to_string(&self) -> MessageResult<String> {
         trace!("Converting {:?} to a string", &self);
-        serde_json::to_string(self)
+        match serde_json::to_string(self) {
+            Err(to_string_error) => Err(DeserializatonError::SerdeError(to_string_error)),
+            Ok(string) => Ok(string),
+        }
     }
 
     /// Converts `DecodedMessage` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
         trace!("Converting {:?} to a string and appending a newline", &self);
         match serde_json::to_string(self) {
-            Err(to_string_error) => Err(to_string_error),
+            Err(to_string_error) => Err(DeserializatonError::SerdeError(to_string_error)),
             Ok(string) => Ok(format!("{}\n", string)),
         }
     }
@@ -91,7 +165,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_station_name(),
             DecodedMessage::AcarsMessage(acars) => acars.clear_station_name(),
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 
@@ -105,7 +180,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.set_station_name(station_name),
             DecodedMessage::AcarsMessage(acars) => acars.set_station_name(station_name),
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 
@@ -115,7 +191,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_proxy_details(),
             DecodedMessage::AcarsMessage(acars) => acars.clear_proxy_details(),
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 
@@ -136,7 +213,8 @@ impl DecodedMessage {
             DecodedMessage::AcarsMessage(acars) => {
                 acars.set_proxy_details(proxied_by, acars_router_version)
             }
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 
@@ -146,7 +224,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_time(),
             DecodedMessage::AcarsMessage(acars) => acars.clear_time(),
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 
@@ -156,7 +235,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.get_time(),
             DecodedMessage::AcarsMessage(acars) => acars.get_time(),
-            DecodedMessage::AsdbJsonMessage(adsb_json) => adsb_json.get_time(),
+            DecodedMessage::AdsbJsonMessage(adsb_json) => adsb_json.get_time(),
+            DecodedMessage::AdsbBeastMessage(adsb_beast) => adsb_beast.get_time(),
         }
     }
 
@@ -166,7 +246,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_freq_skew(),
             DecodedMessage::AcarsMessage(_) => {}
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 
@@ -176,7 +257,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_hdr_bits_fixed(),
             DecodedMessage::AcarsMessage(_) => {}
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 
@@ -186,7 +268,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_noise_level(),
             DecodedMessage::AcarsMessage(_) => {}
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 
@@ -196,7 +279,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_octets_corrected_by_fec(),
             DecodedMessage::AcarsMessage(_) => {}
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 
@@ -206,7 +290,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_sig_level(),
             DecodedMessage::AcarsMessage(_) => {}
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 
@@ -216,7 +301,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(_) => {}
             DecodedMessage::AcarsMessage(acars) => acars.clear_channel(),
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 
@@ -226,7 +312,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(_) => {}
             DecodedMessage::AcarsMessage(acars) => acars.clear_error(),
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 
@@ -236,7 +323,8 @@ impl DecodedMessage {
         match self {
             DecodedMessage::Vdlm2Message(_) => {}
             DecodedMessage::AcarsMessage(acars) => acars.clear_level(),
-            DecodedMessage::AsdbJsonMessage(_) => {}
+            DecodedMessage::AdsbJsonMessage(_) => {}
+            DecodedMessage::AdsbBeastMessage(_) => {}
         }
     }
 }
@@ -251,7 +339,8 @@ impl DecodedMessage {
 pub enum DecodedMessage {
     Vdlm2Message(Vdlm2Message),
     AcarsMessage(AcarsMessage),
-    AsdbJsonMessage(AsdbJsonMessage),
+    AdsbJsonMessage(AdsbJsonMessage),
+    AdsbBeastMessage(AdsbBeastMessage),
 }
 
 impl Default for DecodedMessage {

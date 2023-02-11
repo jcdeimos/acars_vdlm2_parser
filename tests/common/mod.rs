@@ -1,8 +1,10 @@
 #![allow(dead_code)]
 use acars_vdlm2_parser::acars::NewAcarsMessage;
-use acars_vdlm2_parser::adsb_json::NewAsdbJsonMessage;
+use acars_vdlm2_parser::adsb_beast::{NewAdsbBeastMessage, ADSB_BEAST_PACKET_SIZE};
+use acars_vdlm2_parser::adsb_json::NewAdsbJsonMessage;
 use acars_vdlm2_parser::vdlm2::NewVdlm2Message;
 use acars_vdlm2_parser::DecodedMessage;
+use acars_vdlm2_parser::DeserializatonError;
 use byte_unit::Byte;
 use chrono::{DateTime, SecondsFormat, Utc};
 use glob::{glob, GlobResult, Paths, PatternError};
@@ -16,6 +18,7 @@ use serde_json::Value;
 use std::error::Error;
 use std::fmt::Formatter;
 use std::fs::File;
+use std::io::Read;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::time::Duration;
@@ -26,7 +29,8 @@ use thousands::Separable;
 pub enum MessageType {
     Acars,
     Vdlm2,
-    AsdbJson,
+    AdsbJson,
+    AdsbBeast,
     All,
 }
 
@@ -61,10 +65,82 @@ pub enum StatType {
     AllSer,
 }
 
+#[derive(Debug, Clone)]
+pub enum TestFileType {
+    String(String),
+    U8(Vec<u8>),
+}
+
+impl From<String> for TestFileType {
+    fn from(v: String) -> Self {
+        Self::String(v)
+    }
+}
+
+impl From<Vec<u8>> for TestFileType {
+    fn from(v: Vec<u8>) -> Self {
+        Self::U8(v)
+    }
+}
+
+// FIXME: Does this make sense?
+impl IntoIterator for TestFileType {
+    type Item = u8;
+    type IntoIter = std::vec::IntoIter<u8>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            TestFileType::String(v) => v.into_bytes().into_iter(),
+            TestFileType::U8(v) => v.into_iter(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum FileTypes {
+    String(Vec<String>),
+    U8(Vec<u8>),
+}
+
+impl From<String> for FileTypes {
+    fn from(v: String) -> Self {
+        Self::String(vec![v])
+    }
+}
+
+impl From<Vec<String>> for FileTypes {
+    fn from(v: Vec<String>) -> Self {
+        Self::String(v)
+    }
+}
+
+impl IntoIterator for FileTypes {
+    type Item = String;
+    type IntoIter = std::vec::IntoIter<String>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            FileTypes::String(v) => v.into_iter(),
+            FileTypes::U8(v) => {
+                let mut v_string: Vec<String> = Vec::new();
+                for i in v {
+                    v_string.push(i.to_string());
+                }
+                v_string.into_iter()
+            }
+        }
+    }
+}
+
+impl From<Vec<u8>> for FileTypes {
+    fn from(v: Vec<u8>) -> Self {
+        Self::U8(v)
+    }
+}
 /// Struct for storing test information for the tests that just display error information.
 pub struct TestFile {
     pub name: String,
-    pub contents: Vec<String>,
+    pub contents: FileTypes,
 }
 
 /// Struct for storing the start, end time and durations for doing elapsed time measurement.
@@ -309,20 +385,46 @@ impl AppendData for Vec<TestFile> {
             Err(glob_error) => Err(glob_error.into()),
             Ok(target_file) => match File::open(target_file.as_path()) {
                 Err(file_error) => Err(file_error.into()),
-                Ok(file) => match BufReader::new(file).lines().collect() {
-                    Err(read_error) => Err(read_error.into()),
-                    Ok(contents) => match target_file.file_name() {
-                        None => Err("Could not get file name".into()),
-                        Some(file_name) => {
-                            let test_file: TestFile = TestFile {
-                                name: format!("{:?}", file_name),
-                                contents,
-                            };
-                            self.push(test_file);
-                            Ok(())
+                Ok(file_read) => {
+                    let extension = match target_file.as_path().extension() {
+                        None => "",
+                        Some(extension) => extension.to_str().unwrap_or_default(),
+                    };
+
+                    if extension != "bin" {
+                        match BufReader::new(file_read)
+                            .lines()
+                            .collect::<Result<String, _>>()
+                        {
+                            Err(read_error) => Err(read_error.into()),
+                            Ok(contents) => match target_file.file_name() {
+                                None => Err("Could not get file name".into()),
+                                Some(file_name) => {
+                                    let test_file: TestFile = TestFile {
+                                        name: format!("{:?}", file_name),
+                                        contents: contents.into(),
+                                    };
+                                    self.push(test_file);
+                                    Ok(())
+                                }
+                            },
                         }
-                    },
-                },
+                    } else {
+                        let mut contents: Vec<u8> = vec![];
+                        let mut reader = BufReader::new(file_read);
+                        match reader.read_to_end(&mut contents) {
+                            Err(read_error) => Err(read_error.into()),
+                            Ok(_) => {
+                                let test_file: TestFile = TestFile {
+                                    name: format!("{:?}", target_file.file_name().unwrap()),
+                                    contents: contents.into(),
+                                };
+                                self.push(test_file);
+                                Ok(())
+                            }
+                        }
+                    }
+                }
             },
         }
     }
@@ -335,16 +437,16 @@ pub fn read_test_file(filepath: impl AsRef<Path>) -> io::Result<Vec<String>> {
     BufReader::new(File::open(filepath)?).lines().collect()
 }
 
-/// Assistane function to combine contents of test files into a `Vec<String>`.
+/// Assistance function to combine contents of test files into a `Vec<String>`.
 ///
 /// This is used for combining the contents of multiple files into a single `Vec<String>` for testing.
 pub fn combine_found_files(
     find_files: Result<Paths, PatternError>,
-) -> Result<Vec<String>, Box<dyn Error>> {
+) -> Result<Vec<TestFileType>, Box<dyn Error>> {
     match find_files {
         Err(pattern_error) => Err(pattern_error.into()),
         Ok(file_paths) => {
-            let mut loaded_contents: Vec<String> = Vec::new();
+            let mut loaded_contents: Vec<TestFileType> = Vec::new();
             for file in file_paths {
                 let append_data: Result<(), Box<dyn Error>> =
                     append_lines(file, &mut loaded_contents);
@@ -373,29 +475,55 @@ pub fn load_found_files(
 }
 
 /// Assistance function for appending file contents.
-pub fn append_lines(file: GlobResult, data: &mut Vec<String>) -> Result<(), Box<dyn Error>> {
+pub fn append_lines(file: GlobResult, data: &mut Vec<TestFileType>) -> Result<(), Box<dyn Error>> {
     match file {
         Err(file_error) => Err(file_error.into()),
-        Ok(file_path) => match read_test_file(file_path.as_path()) {
-            Err(read_error) => Err(read_error.into()),
-            Ok(contents) => {
-                for line in contents {
-                    data.push(line)
+        Ok(file_path) => {
+            let extension = match file_path.as_path().extension() {
+                None => "",
+                Some(extension) => extension.to_str().unwrap_or_default(),
+            };
+
+            if extension != "bin" {
+                match BufReader::new(File::open(file_path.as_path())?)
+                    .lines()
+                    .collect::<Result<String, _>>()
+                {
+                    Err(read_error) => Err(read_error.into()),
+                    Ok(contents) => {
+                        for line in contents.lines() {
+                            data.push(line.to_string().into());
+                        }
+                        Ok(())
+                    }
                 }
-                Ok(())
+            } else {
+                let mut contents: Vec<u8> = vec![];
+                let mut reader = BufReader::new(File::open(file_path.as_path())?);
+                match reader.read_to_end(&mut contents) {
+                    Err(read_error) => Err(read_error.into()),
+                    Ok(_) => {
+                        // split input on every ADSB_BEAST_MESSAGE_LENGTH bytes
+                        for chunk in contents.chunks(ADSB_BEAST_PACKET_SIZE) {
+                            data.push(chunk.to_vec().into());
+                        }
+                        Ok(())
+                    }
+                }
             }
-        },
+        }
     }
 }
 
 /// Assistance function that combines contents of message type test files.
 pub fn combine_files_of_message_type(
     message_type: MessageType,
-) -> Result<Vec<String>, Box<dyn Error>> {
+) -> Result<Vec<TestFileType>, Box<dyn Error>> {
     match message_type {
         MessageType::Acars => combine_found_files(glob("test_files/acars*")),
         MessageType::Vdlm2 => combine_found_files(glob("test_files/vdlm2*")),
-        MessageType::AsdbJson => combine_found_files(glob("test_files/adsb_*.json")),
+        MessageType::AdsbJson => combine_found_files(glob("test_files/adsb_*.json")),
+        MessageType::AdsbBeast => combine_found_files(glob("test_files/adsb_*.bin")),
         MessageType::All => combine_found_files(glob("test_files/*")),
     }
 }
@@ -407,7 +535,8 @@ pub fn load_files_of_message_type(
     match message_type {
         MessageType::Acars => load_found_files(glob("test_files/acars*")),
         MessageType::Vdlm2 => load_found_files(glob("test_files/vdlm2*")),
-        MessageType::AsdbJson => load_found_files(glob("test_files/adsb_*.json")),
+        MessageType::AdsbJson => load_found_files(glob("test_files/adsb_*.json")),
+        MessageType::AdsbBeast => load_found_files(glob("test_files/adsb_*.bin")),
         MessageType::All => load_found_files(glob("test_files/*")),
     }
 }
@@ -490,10 +619,36 @@ pub fn process_file_as_adsb_json(contents: &[String]) {
     }
 }
 
+pub fn process_file_as_adsb_beast(contents: &[u8]) {
+    let contents: Vec<u8> = contents.to_vec();
+    let mut errors: Vec<String> = Vec::new();
+    for (entry, line) in contents.chunks(ADSB_BEAST_PACKET_SIZE).enumerate() {
+        if let Err(parse_error) = line.to_adsb_beast() {
+            let error_text: String = format!(
+                "Entry {} parse error: {}\nData: {}",
+                entry + 1,
+                parse_error,
+                format!("{:?}", line)
+            );
+            errors.push(error_text);
+        }
+    }
+
+    match errors.is_empty() {
+        true => println!("No errors found in provided contents"),
+        false => {
+            println!("Errors found as follows");
+            for error in errors {
+                println!("{}", error);
+            }
+        }
+    }
+}
+
 /// Assistance function to compare error message strings between Library result and serde `Value` result.
 pub fn compare_errors(
-    error_1: Option<serde_json::Error>,
-    error_2: Result<Value, serde_json::Error>,
+    error_1: Option<DeserializatonError>,
+    error_2: Result<Value, DeserializatonError>,
     line: &str,
 ) {
     match (error_1, error_2) {
@@ -601,6 +756,21 @@ impl ContentDuplicator for Vec<String> {
             data.shuffle(&mut rng);
             for entry in &data {
                 duplicated_contents.push(entry.to_string());
+            }
+        }
+        duplicated_contents
+    }
+}
+
+impl ContentDuplicator for Vec<TestFileType> {
+    fn duplicate_contents(&self, rounds: &i64) -> Self {
+        let mut duplicated_contents: Vec<TestFileType> = Vec::new();
+        let mut data: Vec<TestFileType> = self.to_vec();
+        let mut rng: ThreadRng = thread_rng();
+        for _ in 0..*rounds {
+            data.shuffle(&mut rng);
+            for entry in &data {
+                duplicated_contents.push(entry.to_owned());
             }
         }
         duplicated_contents

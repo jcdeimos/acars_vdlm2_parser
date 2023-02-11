@@ -1,4 +1,4 @@
-use crate::MessageResult;
+use crate::{DeserializatonError, MessageResult};
 use serde::{Deserialize, Serialize};
 
 /// Trait for performing a decode if you wish to apply it to types other than the defaults done in this library.
@@ -6,31 +6,37 @@ use serde::{Deserialize, Serialize};
 /// The originating data must be in JSON format and have support for providing a `str`, and will not consume the source.
 ///
 /// This is intended for specifically decoding to `ADSBMessage`.
-pub trait NewAsdbJsonMessage {
-    fn to_adsb(&self) -> MessageResult<AsdbJsonMessage>;
+pub trait NewAdsbJsonMessage {
+    fn to_adsb(&self) -> MessageResult<AdsbJsonMessage>;
 }
 
 /// Implementing `.to_adsb()` for the type `String`.
 ///
 /// This does not consume the `String`.
-impl NewAsdbJsonMessage for String {
-    fn to_adsb(&self) -> MessageResult<AsdbJsonMessage> {
-        serde_json::from_str(self)
+impl NewAdsbJsonMessage for String {
+    fn to_adsb(&self) -> MessageResult<AdsbJsonMessage> {
+        match serde_json::from_str(self) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(DeserializatonError::SerdeError(e)),
+        }
     }
 }
 
 /// Supporting `.to_adsb()` for the type `str`.
 ///
 /// This does not consume the `str`.
-impl NewAsdbJsonMessage for str {
-    fn to_adsb(&self) -> MessageResult<AsdbJsonMessage> {
-        serde_json::from_str(self)
+impl NewAdsbJsonMessage for str {
+    fn to_adsb(&self) -> MessageResult<AdsbJsonMessage> {
+        match serde_json::from_str(self) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(DeserializatonError::SerdeError(e)),
+        }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(deny_unknown_fields)]
-pub struct AsdbJsonMessage {
+pub struct AdsbJsonMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub now: Option<f64>, // Unix timestamp
     pub hex: String, // ICAO address
@@ -151,16 +157,19 @@ impl Default for SilType {
     }
 }
 
-impl AsdbJsonMessage {
+impl AdsbJsonMessage {
     /// Converts `ADSBsMessage` to `String`.
     pub fn to_string(&self) -> MessageResult<String> {
-        serde_json::to_string(self)
+        match serde_json::to_string(self) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(DeserializatonError::SerdeError(e)),
+        }
     }
 
     /// Converts `ADSBJsonMessage` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
         match serde_json::to_string(self) {
-            Err(to_string_error) => Err(to_string_error),
+            Err(to_string_error) => Err(DeserializatonError::SerdeError(to_string_error)),
             Ok(string) => Ok(format!("{}\n", string)),
         }
     }
