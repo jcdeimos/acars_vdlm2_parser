@@ -639,7 +639,8 @@ pub fn process_file_as_adsb_raw(contents: &[u8]) {
     let end: u8 = 0x3b;
     let alternate_end: u8 = 0x0a;
     for bit in contents.iter() {
-        if bit == &alternate_end && line.len() > 0 {
+        // FIXME: for now, reject any messages that are 4 bytes or less
+        if bit == &alternate_end && line.len() > 4 {
             // FIXME: This should be broken out in to it's own helper function in the main library so that
             // users of the library can use it to parse raw data to pass in to the library
             // FIXME: there is some kind of stupid read-in issue with the data where I need to do this round-robin
@@ -685,7 +686,7 @@ pub fn process_file_as_adsb_raw(contents: &[u8]) {
     }
 
     // process the last message
-    if line.len() > 0 {
+    if line.len() > 4 {
         // if the last character of the line is end, pop it off
         if line[line.len() - 1] == end {
             line.pop();

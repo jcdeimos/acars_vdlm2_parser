@@ -5,7 +5,6 @@ use serde_json::Error as SerdeError;
 #[derive(Debug)]
 pub enum DeserializationError {
     SerdeError(serde_json::error::Error),
-    // TODO: rename this to something more appropriate
     DekuError(deku::error::DekuError),
     HexError(FromHexError),
     All(serde_json::error::Error, deku::error::DekuError),
