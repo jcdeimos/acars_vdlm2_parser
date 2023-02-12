@@ -18,6 +18,7 @@ use core::{
 };
 use deku::bitvec::{BitSlice, Msb0};
 use deku::prelude::*;
+use hex;
 use serde::{Deserialize, Serialize};
 
 /// Trait for performing a decode if you wish to apply it to types other than the defaults done in this library.
@@ -32,9 +33,11 @@ pub trait NewAdsbRawMessage {
 /// Implementing `.to_adsb_raw()` for the type `String`.
 ///
 /// This does not consume the `String`.
+/// The expected input is a hexadecimal string.
 impl NewAdsbRawMessage for String {
     fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage> {
-        match AdsbRawMessage::from_bytes((self.as_bytes().as_ref(), 0)) {
+        let bytes = hex::decode(&self)?;
+        match AdsbRawMessage::from_bytes((&bytes, 0)) {
             Ok((_, v)) => Ok(v),
             Err(e) => Err(DeserializationError::DekuError(e)),
         }
@@ -44,27 +47,35 @@ impl NewAdsbRawMessage for String {
 /// Supporting `.to_adsb_raw()` for the type `str`.
 ///
 /// This does not consume the `str`.
+/// The expected input is a hexadecimal string.
 impl NewAdsbRawMessage for str {
     fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage> {
-        match AdsbRawMessage::from_bytes((self.as_bytes().as_ref(), 0)) {
+        let bytes = hex::decode(&self)?;
+        match AdsbRawMessage::from_bytes((&bytes, 0)) {
             Ok((_, v)) => Ok(v),
             Err(e) => Err(DeserializationError::DekuError(e)),
         }
     }
 }
 
+/// Supporting `.to_adsb_raw()` for the type `Vec<u8>`.
+/// This does not consume the `Vec<u8>`.
+/// The expected input is a a Vec<u8> of *bytes*.
 impl NewAdsbRawMessage for Vec<u8> {
     fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage> {
-        match AdsbRawMessage::from_bytes((self.as_ref(), 0)) {
+        match AdsbRawMessage::from_bytes((self, 0)) {
             Ok((_, v)) => Ok(v),
             Err(e) => Err(DeserializationError::DekuError(e)),
         }
     }
 }
 
+/// Supporting `.to_adsb_raw()` for the type `Vec<u8>`.
+/// This does not consume the `[u8]`.
+/// The expected input is a a [u8] of *bytes*.
 impl NewAdsbRawMessage for [u8] {
     fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage> {
-        match AdsbRawMessage::from_bytes((self.as_ref(), 0)) {
+        match AdsbRawMessage::from_bytes((self, 0)) {
             Ok((_, v)) => Ok(v),
             Err(e) => Err(DeserializationError::DekuError(e)),
         }

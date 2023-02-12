@@ -8,6 +8,7 @@ use acars_vdlm2_parser::DecodedMessage;
 use byte_unit::Byte;
 use chrono::{DateTime, SecondsFormat, Utc};
 use glob::{glob, GlobResult, Paths, PatternError};
+use hex;
 use humantime::format_duration;
 use prettytable::format::Alignment;
 use prettytable::{row, Cell, Row, Table};
@@ -24,7 +25,6 @@ use std::path::Path;
 use std::time::Duration;
 use std::{fmt, io};
 use thousands::Separable;
-
 /// Enum for indicating test data type.
 pub enum MessageType {
     Acars,
@@ -385,7 +385,7 @@ impl AppendData for Vec<TestFile> {
             Err(glob_error) => Err(glob_error.into()),
             Ok(target_file) => match File::open(target_file.as_path()) {
                 Err(file_error) => Err(file_error.into()),
-                Ok(file_read) => {
+                Ok(mut file_read) => {
                     let extension = match target_file.as_path().extension() {
                         None => "",
                         Some(extension) => extension.to_str().unwrap_or_default(),
@@ -411,12 +411,13 @@ impl AppendData for Vec<TestFile> {
                         }
                     } else {
                         let mut contents: Vec<u8> = vec![];
-                        let mut reader = BufReader::new(file_read);
-                        match reader.read_to_end(&mut contents) {
+                        match file_read.read_to_end(&mut contents) {
                             Err(read_error) => Err(read_error.into()),
                             Ok(_) => {
                                 let test_file: TestFile = TestFile {
                                     name: format!("{:?}", target_file.file_name().unwrap()),
+                                    /// This reads the entire file in to a `Vec<u8>`. Each individual message is *NOT*
+                                    /// seperated out. It is the responsibility of the caller to ensure that each message is separated
                                     contents: contents.into(),
                                 };
                                 self.push(test_file);
@@ -633,40 +634,87 @@ pub fn process_file_as_adsb_raw(contents: &[u8]) {
     let contents: Vec<u8> = contents.to_vec();
     let mut errors: Vec<String> = Vec::new();
     let mut line: Vec<u8> = vec![];
-    let mut entry = 1;
-    const ESCAPE: u8 = 0x2a;
+    let mut entry = 0;
+    let start: u8 = 0x2a; // The adsb raw end charater sequence is is a '0x3b0a', start is '0x2a'
+    let end: u8 = 0x3b;
+    let alternate_end: u8 = 0x0a;
     for bit in contents.iter() {
-        if bit == &ESCAPE && line.len() > 0 {
-            println!("Entry {} size {:?}", entry, line.len());
-            if let Err(parse_error) = line.to_adsb_raw() {
-                let error_text: String = format!(
-                    "Entry {} parse error: {}\nData: {}",
-                    entry,
-                    parse_error,
-                    format!("Bits {:?}, Length: {}", line, line.len())
-                );
-                errors.push(error_text);
-            } else {
-                println!("Entry {:?} parsed successfully", line.to_adsb_raw());
+        if bit == &alternate_end && line.len() > 0 {
+            // FIXME: This should be broken out in to it's own helper function in the main library so that
+            // users of the library can use it to parse raw data to pass in to the library
+            // FIXME: there is some kind of stupid read-in issue with the data where I need to do this round-robin
+            // nonesense to convert the data to a string and then back in to a vector of u8s
+            // Maybe I should chunk the input?
+            if let Ok(good_line) = String::from_utf8(line.clone()) {
+                let decoded_line = hex::decode(&good_line);
+                match decoded_line {
+                    Ok(decoded_line) => match decoded_line.to_adsb_raw() {
+                        Ok(decoded_as_raw) => {
+                            println!(
+                                "Entry {} parsed successfully. Result {:?} {:?}",
+                                entry, decoded_line, decoded_as_raw
+                            );
+                        }
+                        Err(parse_error) => {
+                            let error_text: String = format!(
+                                "Entry {} parse error: {}\nData: {}\n{:?} {}",
+                                entry,
+                                parse_error,
+                                good_line,
+                                decoded_line,
+                                line.len()
+                            );
+                            errors.push(error_text);
+                        }
+                    },
+                    Err(hex_error) => {
+                        let error_text: String = format!(
+                            "Entry {} hex decode error: {}\nData: {}",
+                            entry, hex_error, good_line
+                        );
+                        errors.push(error_text);
+                    }
+                }
             }
-
+        } else if bit == &start {
             line = vec![];
-            line.push(bit.clone());
             entry += 1;
-        } else {
+        } else if bit != &end && bit != &alternate_end {
             line.push(bit.clone());
+        }
+    }
+
+    // process the last message
+    if line.len() > 0 {
+        // if the last character of the line is end, pop it off
+        if line[line.len() - 1] == end {
+            line.pop();
+        }
+
+        println!("Entry {} size {:?}", entry, line.len());
+        if let Err(parse_error) = line.to_adsb_raw() {
+            let error_text: String = format!(
+                "Entry {} parse error: {}\nData: {}",
+                entry,
+                parse_error,
+                format!("Bits {:?}, Length: {}", line, line.len())
+            );
+            errors.push(error_text);
+        } else {
+            println!("Entry {:?} parsed successfully", line.to_adsb_raw());
         }
     }
 
     match errors.is_empty() {
         true => println!(
-            "No errors found in provided contents. Decoded message size: {}",
+            "No errors found in provided contents. Total messages: {}",
             entry
         ),
         false => {
             println!(
-                "Errors found as follows, decoded message size: {}, total errors {}",
+                "Errors found as follows, total messages: {}, total successful decodes: {}, total errors {}",
                 entry,
+                entry - errors.len(),
                 errors.len()
             );
             for error in errors {
