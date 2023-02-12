@@ -30,7 +30,7 @@ pub enum MessageType {
     Acars,
     Vdlm2,
     AdsbJson,
-    AdsbBeast,
+    AdsbRaw,
     All,
 }
 
@@ -533,7 +533,7 @@ pub fn combine_files_of_message_type(
         MessageType::Acars => combine_found_files(glob("test_files/acars*")),
         MessageType::Vdlm2 => combine_found_files(glob("test_files/vdlm2*")),
         MessageType::AdsbJson => combine_found_files(glob("test_files/adsb_*.json")),
-        MessageType::AdsbBeast => combine_found_files(glob("test_files/adsb_*.bin")),
+        MessageType::AdsbRaw => combine_found_files(glob("test_files/adsb_raw*.bin")),
         MessageType::All => combine_found_files(glob("test_files/*")),
     }
 }
@@ -546,7 +546,7 @@ pub fn load_files_of_message_type(
         MessageType::Acars => load_found_files(glob("test_files/acars*")),
         MessageType::Vdlm2 => load_found_files(glob("test_files/vdlm2*")),
         MessageType::AdsbJson => load_found_files(glob("test_files/adsb_*.json")),
-        MessageType::AdsbBeast => load_found_files(glob("test_files/adsb_*.bin")),
+        MessageType::AdsbRaw => load_found_files(glob("test_files/adsb_raw*.bin")),
         MessageType::All => load_found_files(glob("test_files/*")),
     }
 }

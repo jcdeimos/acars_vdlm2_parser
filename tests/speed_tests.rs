@@ -207,7 +207,7 @@ impl SpeedTest for i64 {
                     TestFileType::U8(line_as_bytes) => {
                         // FIXME: Re-enable this once the Beast message is fixed
                         // if let Ok((_, decoded_message)) =
-                        //     AdsbBeastMessage::from_bytes((&line_as_bytes, 0))
+                        //     AdsbRawMessage::from_bytes((&line_as_bytes, 0))
                         // {
                         //     successfully_decoded_items
                         //         .lock()

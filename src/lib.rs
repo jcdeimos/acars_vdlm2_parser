@@ -44,7 +44,7 @@ impl DecodeMessage for String {
         if !deku_decoded.is_err() {
             // FIXME: This is hardly idiomatic Rust, but I just want it to work
             let (_, deku_decoded) = deku_decoded.unwrap();
-            return MessageResult::Ok(DecodedMessage::AdsbBeastMessage(deku_decoded));
+            return MessageResult::Ok(DecodedMessage::AdsbRawMessage(deku_decoded));
         }
 
         Err(DeserializationError::All(
@@ -72,7 +72,7 @@ impl DecodeMessage for str {
         if !deku_decoded.is_err() {
             // FIXME: This is hardly idiomatic Rust, but I just want it to work
             let (_, deku_decoded) = deku_decoded.unwrap();
-            return MessageResult::Ok(DecodedMessage::AdsbBeastMessage(deku_decoded));
+            return MessageResult::Ok(DecodedMessage::AdsbRawMessage(deku_decoded));
         }
 
         Err(DeserializationError::All(
@@ -97,7 +97,7 @@ impl DecodeMessage for Vec<u8> {
         if !deku_decoded.is_err() {
             // FIXME: This is hardly idiomatic Rust, but I just want it to work
             let (_, deku_decoded) = deku_decoded.unwrap();
-            return MessageResult::Ok(DecodedMessage::AdsbBeastMessage(deku_decoded));
+            return MessageResult::Ok(DecodedMessage::AdsbRawMessage(deku_decoded));
         }
 
         Err(DeserializationError::All(
@@ -159,7 +159,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_station_name(),
             DecodedMessage::AcarsMessage(acars) => acars.clear_station_name(),
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 
@@ -174,7 +174,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.set_station_name(station_name),
             DecodedMessage::AcarsMessage(acars) => acars.set_station_name(station_name),
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 
@@ -185,7 +185,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_proxy_details(),
             DecodedMessage::AcarsMessage(acars) => acars.clear_proxy_details(),
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 
@@ -207,7 +207,7 @@ impl DecodedMessage {
                 acars.set_proxy_details(proxied_by, acars_router_version)
             }
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 
@@ -218,7 +218,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_time(),
             DecodedMessage::AcarsMessage(acars) => acars.clear_time(),
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 
@@ -229,7 +229,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.get_time(),
             DecodedMessage::AcarsMessage(acars) => acars.get_time(),
             DecodedMessage::AdsbJsonMessage(adsb_json) => adsb_json.get_time(),
-            DecodedMessage::AdsbBeastMessage(adsb_raw) => adsb_raw.get_time(),
+            DecodedMessage::AdsbRawMessage(adsb_raw) => adsb_raw.get_time(),
         }
     }
 
@@ -240,7 +240,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_freq_skew(),
             DecodedMessage::AcarsMessage(_) => {}
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 
@@ -251,7 +251,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_hdr_bits_fixed(),
             DecodedMessage::AcarsMessage(_) => {}
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 
@@ -262,7 +262,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_noise_level(),
             DecodedMessage::AcarsMessage(_) => {}
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 
@@ -273,7 +273,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_octets_corrected_by_fec(),
             DecodedMessage::AcarsMessage(_) => {}
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 
@@ -284,7 +284,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_sig_level(),
             DecodedMessage::AcarsMessage(_) => {}
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 
@@ -295,7 +295,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(_) => {}
             DecodedMessage::AcarsMessage(acars) => acars.clear_channel(),
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 
@@ -306,7 +306,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(_) => {}
             DecodedMessage::AcarsMessage(acars) => acars.clear_error(),
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 
@@ -317,7 +317,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(_) => {}
             DecodedMessage::AcarsMessage(acars) => acars.clear_level(),
             DecodedMessage::AdsbJsonMessage(_) => {}
-            DecodedMessage::AdsbBeastMessage(_) => {}
+            DecodedMessage::AdsbRawMessage(_) => {}
         }
     }
 }
@@ -333,7 +333,7 @@ pub enum DecodedMessage {
     Vdlm2Message(Vdlm2Message),
     AcarsMessage(AcarsMessage),
     AdsbJsonMessage(AdsbJsonMessage),
-    AdsbBeastMessage(AdsbRawMessage),
+    AdsbRawMessage(AdsbRawMessage),
 }
 
 impl Default for DecodedMessage {

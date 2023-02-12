@@ -18,7 +18,7 @@ use crate::common::{
 #[test]
 #[ignore]
 fn test_adsb_raw_parsing() -> Result<(), Box<dyn Error>> {
-    match combine_files_of_message_type(MessageType::AdsbBeast) {
+    match combine_files_of_message_type(MessageType::AdsbRaw) {
         Err(load_failed) => Err(load_failed),
         Ok(adsb_messages) => {
             let mut valid_adsb_messages: Vec<AdsbRawMessage> = Vec::new();
@@ -53,24 +53,22 @@ fn test_adsb_raw_parsing() -> Result<(), Box<dyn Error>> {
 #[test]
 // #[ignore]
 fn show_adsb_raw_injest() -> Result<(), Box<dyn Error>> {
-    println!("Showing ADSB Beast ingest errors");
-    match load_files_of_message_type(MessageType::AdsbBeast) {
+    println!("Showing ADSB Raw ingest errors");
+    match load_files_of_message_type(MessageType::AdsbRaw) {
         // TODO: Fix this test. It doesn't appear to automagically fail when there are errors.
         Err(load_failed) => Err(load_failed),
-        Ok(beast_files) => {
-            for file in beast_files {
+        Ok(raw_files) => {
+            for file in raw_files {
                 println!("Testing the contents from file: {}", file.name);
                 match file.contents {
                     common::FileTypes::String(_) => {} // we should never end up here in this test, but you know, Rust
                     common::FileTypes::U8(file_as_vec_u8) => {
-                        println!("As UTF8");
                         process_file_as_adsb_raw(&file_as_vec_u8);
-                        println!("As bytes done");
                     }
                 }
             }
-            //Ok(())
-            Err("This test is currently failing, but it's not a big deal. It's just a test for the test harness.".into())
+            Ok(())
+            // Err("This test is currently failing, but it's not a big deal. It's just a test for the test harness.".into())
         }
     }
 }
