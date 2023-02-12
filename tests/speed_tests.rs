@@ -5,7 +5,7 @@ use crate::common::{
     ContentDuplicator, MessageType, RunDurations, SerialisationTarget, SpeedTestComparisons,
     SpeedTestType, Stopwatch, StopwatchType, TestFileType,
 };
-use acars_vdlm2_parser::message_types::adsb_beast::AdsbBeastMessage;
+use acars_vdlm2_parser::message_types::adsb_raw::AdsbRawMessage;
 use acars_vdlm2_parser::{DecodeMessage, DecodedMessage};
 use byte_unit::Byte;
 use chrono::Utc;

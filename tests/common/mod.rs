@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 use acars_vdlm2_parser::error_handling::deserialization_error::DeserializationError;
 use acars_vdlm2_parser::message_types::acars::NewAcarsMessage;
-use acars_vdlm2_parser::message_types::adsb_beast::NewAdsbBeastMessage;
 use acars_vdlm2_parser::message_types::adsb_json::NewAdsbJsonMessage;
+use acars_vdlm2_parser::message_types::adsb_raw::NewAdsbRawMessage;
 use acars_vdlm2_parser::message_types::vdlm2::NewVdlm2Message;
 use acars_vdlm2_parser::DecodedMessage;
 use byte_unit::Byte;
@@ -503,13 +503,12 @@ pub fn append_lines(file: GlobResult, data: &mut Vec<TestFileType>) -> Result<()
                 match reader.read_to_end(&mut contents) {
                     Err(read_error) => Err(read_error.into()),
                     Ok(_) => {
-                        // split input on every ADSB_BEAST_MESSAGE_LENGTH bytes
                         // start of a packet is 0x2a
                         // loop through file contents and split on 0x2a
                         let mut message = vec![];
                         for bit in contents {
-                            if bit == 0x2a {
-                                println!("ADSB_BEAST_MESSAGE_LENGTH: {}", message.len());
+                            if bit == 0x2a && !message.is_empty() {
+                                println!("ADSB_RAW_MESSAGE_LENGTH: {}", message.len());
                                 if !message.is_empty() {
                                     data.push(message.to_vec().into());
                                     message = vec![];
@@ -518,9 +517,6 @@ pub fn append_lines(file: GlobResult, data: &mut Vec<TestFileType>) -> Result<()
                             }
                             message.push(bit);
                         }
-                        // for chunk in contents.chunks(ADSB_BEAST_PACKET_SIZE) {
-                        //     data.push(chunk.to_vec().into());
-                        // }
                         Ok(())
                     }
                 }
@@ -633,25 +629,25 @@ pub fn process_file_as_adsb_json(contents: &[String]) {
     }
 }
 
-pub fn process_file_as_adsb_beast(contents: &[u8]) {
+pub fn process_file_as_adsb_raw(contents: &[u8]) {
     let contents: Vec<u8> = contents.to_vec();
     let mut errors: Vec<String> = Vec::new();
     let mut line: Vec<u8> = vec![];
     let mut entry = 1;
-    let escape: u8 = 0x2a;
+    const ESCAPE: u8 = 0x2a;
     for bit in contents.iter() {
-        if bit == &escape {
+        if bit == &ESCAPE && line.len() > 0 {
             println!("Entry {} size {:?}", entry, line.len());
-            if let Err(parse_error) = line.to_adsb_beast() {
+            if let Err(parse_error) = line.to_adsb_raw() {
                 let error_text: String = format!(
                     "Entry {} parse error: {}\nData: {}",
                     entry,
                     parse_error,
-                    format!("{:?}", line)
+                    format!("Bits {:?}, Length: {}", line, line.len())
                 );
                 errors.push(error_text);
             } else {
-                println!("Entry {:?} parsed successfully", line.to_adsb_beast());
+                println!("Entry {:?} parsed successfully", line.to_adsb_raw());
             }
 
             line = vec![];
@@ -668,7 +664,11 @@ pub fn process_file_as_adsb_beast(contents: &[u8]) {
             entry
         ),
         false => {
-            println!("Errors found as follows, decoded message size: {}", entry);
+            println!(
+                "Errors found as follows, decoded message size: {}, total errors {}",
+                entry,
+                errors.len()
+            );
             for error in errors {
                 println!("{}", error);
             }

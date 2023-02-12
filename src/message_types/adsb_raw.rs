@@ -25,55 +25,277 @@ use serde::{Deserialize, Serialize};
 /// The originating data must be in JSON format and have support for providing a `str`, and will not consume the source.
 ///
 /// This is intended for specifically decoding to `ADSBMessage`.
-pub trait NewAdsbBeastMessage {
-    fn to_adsb_beast(&self) -> MessageResult<AdsbBeastMessage>;
+pub trait NewAdsbRawMessage {
+    fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage>;
 }
 
-/// Implementing `.to_adsb_beast()` for the type `String`.
+/// Implementing `.to_adsb_raw()` for the type `String`.
 ///
 /// This does not consume the `String`.
-impl NewAdsbBeastMessage for String {
-    fn to_adsb_beast(&self) -> MessageResult<AdsbBeastMessage> {
-        match AdsbBeastMessage::from_bytes((self.as_bytes().as_ref(), 0)) {
+impl NewAdsbRawMessage for String {
+    fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage> {
+        match AdsbRawMessage::from_bytes((self.as_bytes().as_ref(), 0)) {
             Ok((_, v)) => Ok(v),
             Err(e) => Err(DeserializationError::DekuError(e)),
         }
     }
 }
 
-/// Supporting `.to_adsb_beast()` for the type `str`.
+/// Supporting `.to_adsb_raw()` for the type `str`.
 ///
 /// This does not consume the `str`.
-impl NewAdsbBeastMessage for str {
-    fn to_adsb_beast(&self) -> MessageResult<AdsbBeastMessage> {
-        match AdsbBeastMessage::from_bytes((self.as_bytes().as_ref(), 0)) {
+impl NewAdsbRawMessage for str {
+    fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage> {
+        match AdsbRawMessage::from_bytes((self.as_bytes().as_ref(), 0)) {
             Ok((_, v)) => Ok(v),
             Err(e) => Err(DeserializationError::DekuError(e)),
         }
     }
 }
 
-impl NewAdsbBeastMessage for Vec<u8> {
-    fn to_adsb_beast(&self) -> MessageResult<AdsbBeastMessage> {
-        match AdsbBeastMessage::from_bytes((self.as_ref(), 0)) {
+impl NewAdsbRawMessage for Vec<u8> {
+    fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage> {
+        match AdsbRawMessage::from_bytes((self.as_ref(), 0)) {
             Ok((_, v)) => Ok(v),
             Err(e) => Err(DeserializationError::DekuError(e)),
         }
     }
 }
 
-impl NewAdsbBeastMessage for [u8] {
-    fn to_adsb_beast(&self) -> MessageResult<AdsbBeastMessage> {
-        match AdsbBeastMessage::from_bytes((self.as_ref(), 0)) {
+impl NewAdsbRawMessage for [u8] {
+    fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage> {
+        match AdsbRawMessage::from_bytes((self.as_ref(), 0)) {
             Ok((_, v)) => Ok(v),
             Err(e) => Err(DeserializationError::DekuError(e)),
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, DekuRead)]
+/// Downlink ADS-B Packet
+#[derive(Debug, PartialEq, DekuRead, Clone, Serialize, Deserialize)]
+
+pub struct AdsbRawMessage {
+    /// Starting with 5 bit identifier, decode packet
+    pub df: DF,
+    /// Calculated from all bits, used as ICAO for Response packets
+    #[deku(reader = "Self::read_crc(df, deku::input_bits)")]
+    pub crc: u32,
+}
+
+impl AdsbRawMessage {
+    /// Read rest as CRC bits
+    fn read_crc<'b>(
+        df: &DF,
+        rest: &'b BitSlice<u8, Msb0>,
+    ) -> result::Result<(&'b BitSlice<u8, Msb0>, u32), DekuError> {
+        const MODES_LONG_MSG_BYTES: usize = 14;
+        const MODES_SHORT_MSG_BYTES: usize = 7;
+
+        let bit_len = if let Ok(id) = df.deku_id() {
+            if id & 0x10 != 0 {
+                MODES_LONG_MSG_BYTES * 8
+            } else {
+                MODES_SHORT_MSG_BYTES * 8
+            }
+        } else {
+            // In this case, it's the DF::CommD, which has multiple ids
+            MODES_LONG_MSG_BYTES * 8
+        };
+
+        let (_, remaining_bytes, _) = rest.domain().region().unwrap();
+        let crc = modes_checksum(remaining_bytes, bit_len)?;
+        Ok((rest, crc))
+    }
+}
+
+/// Downlink Format (3.1.2.3.2.1.2)
+///
+/// Starting with 5 bits, decode the rest of the message as the correct data packets
+#[derive(Debug, PartialEq, DekuRead, Clone, Serialize, Deserialize)]
+#[deku(type = "u8", bits = "5")]
+pub enum DF {
+    /// 17: Extended Squitter, Downlink Format 17 (3.1.2.8.6)
+    ///
+    /// Civil aircraft ADS-B message
+    #[deku(id = "17")]
+    ADSB(Adsb),
+
+    /// 11: (Mode S) All-call reply, Downlink format 11 (2.1.2.5.2.2)
+    #[deku(id = "11")]
+    AllCallReply {
+        /// CA: Capability
+        capability: Capability,
+        /// AA: Address Announced
+        icao: ICAO,
+        /// PI: Parity/Interrogator identifier
+        p_icao: ICAO,
+    },
+
+    /// 0: (Mode S) Short Air-Air Surveillance, Downlink Format 0 (3.1.2.8.2)
+    #[deku(id = "0")]
+    ShortAirAirSurveillance {
+        /// VS: Vertical Status
+        #[deku(bits = "1")]
+        vs: u8,
+        /// CC:
+        #[deku(bits = "1")]
+        cc: u8,
+        /// Spare
+        #[deku(bits = "1")]
+        unused: u8,
+        /// SL: Sensitivity level, ACAS
+        #[deku(bits = "3")]
+        sl: u8,
+        /// Spare
+        #[deku(bits = "2")]
+        unused1: u8,
+        /// RI: Reply Information
+        #[deku(bits = "4")]
+        ri: u8,
+        /// Spare
+        #[deku(bits = "2")]
+        unused2: u8,
+        /// AC: altitude code
+        altitude: AC13Field,
+        /// AP: address, parity
+        parity: ICAO,
+    },
+
+    /// 4: (Mode S) Surveillance Altitude Reply, Downlink Format 4 (3.1.2.6.5)
+    #[deku(id = "4")]
+    SurveillanceAltitudeReply {
+        /// FS: Flight Status
+        fs: FlightStatus,
+        /// DR: DownlinkRequest
+        dr: DownlinkRequest,
+        /// UM: Utility Message
+        um: UtilityMessage,
+        /// AC: AltitudeCode
+        ac: AC13Field,
+        /// AP: Address/Parity
+        ap: ICAO,
+    },
+
+    /// 5: (Mode S) Surveillance Identity Reply (3.1.2.6.7)
+    #[deku(id = "5")]
+    SurveillanceIdentityReply {
+        /// FS: Flight Status
+        fs: FlightStatus,
+        /// DR: Downlink Request
+        dr: DownlinkRequest,
+        /// UM: UtilityMessage
+        um: UtilityMessage,
+        /// ID: Identity
+        id: IdentityCode,
+        /// AP: Address/Parity
+        ap: ICAO,
+    },
+
+    /// 16: (Mode S) Long Air-Air Surveillance Downlink Format 16 (3.1.2.8.3)
+    #[deku(id = "16")]
+    LongAirAir {
+        #[deku(bits = "1")]
+        vs: u8,
+        #[deku(bits = "2")]
+        spare1: u8,
+        #[deku(bits = "3")]
+        sl: u8,
+        #[deku(bits = "2")]
+        spare2: u8,
+        #[deku(bits = "4")]
+        ri: u8,
+        #[deku(bits = "2")]
+        spare3: u8,
+        /// AC: altitude code
+        altitude: AC13Field,
+        /// MV: message, acas
+        #[deku(count = "7")]
+        mv: Vec<u8>,
+        /// AP: address, parity
+        parity: ICAO,
+    },
+
+    /// 18: Extended Squitter/Supplementary, Downlink Format 18 (3.1.2.8.7)
+    ///
+    /// Non-Transponder-based ADS-B Transmitting Subsystems and TIS-B Transmitting equipment.
+    /// Equipment that cannot be interrogated.
+    #[deku(id = "18")]
+    TisB {
+        /// Enum containing message
+        cf: ControlField,
+        /// PI: parity/interrogator identifier
+        pi: ICAO,
+    },
+
+    /// 19: Extended Squitter Military Application, Downlink Format 19 (3.1.2.8.8)
+    #[deku(id = "19")]
+    ExtendedQuitterMilitaryApplication {
+        /// Reserved
+        #[deku(bits = "3")]
+        af: u8,
+    },
+
+    /// 20: COMM-B Altitude Reply (3.1.2.6.6)
+    #[deku(id = "20")]
+    CommBAltitudeReply {
+        /// FS: Flight Status
+        flight_status: FlightStatus,
+        /// DR: Downlink Request
+        dr: DownlinkRequest,
+        /// UM: Utility Message
+        um: UtilityMessage,
+        /// AC: Altitude Code
+        alt: AC13Field,
+        /// MB Message, Comm-B
+        bds: BDS,
+        /// AP: address/parity
+        parity: ICAO,
+    },
+
+    /// 21: COMM-B Reply, Downlink Format 21 (3.1.2.6.8)
+    #[deku(id = "21")]
+    CommBIdentityReply {
+        /// FS: Flight Status
+        fs: FlightStatus,
+        /// DR: Downlink Request
+        dr: DownlinkRequest,
+        /// UM: Utility Message
+        um: UtilityMessage,
+        /// ID: Identity
+        #[deku(
+            bits = "13",
+            endian = "big",
+            map = "|squawk: u32| -> Result<_, DekuError> {Ok(decode_id13_field(squawk))}"
+        )]
+        id: u32,
+        /// MB Message, Comm-B
+        bds: BDS,
+        /// AP address/parity
+        parity: ICAO,
+    },
+
+    /// 24..=31: Comm-D(ELM), Downlink Format 24 (3.1.2.7.3)
+    #[deku(id_pat = "24..=31")]
+    CommDExtendedLengthMessage {
+        /// Spare - 1 bit
+        #[deku(bits = "1")]
+        spare: u8,
+        /// KE: control, ELM
+        ke: KE,
+        /// ND: number of D-segment
+        #[deku(bits = "4")]
+        nd: u8,
+        /// MD: message, Comm-D, 80 bits
+        #[deku(count = "10")]
+        md: Vec<u8>,
+        /// AP: address/parity
+        parity: ICAO,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, DekuRead, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct AdsbBeastMessage {
+pub struct Adsb {
     // Transponder Capability
     pub capability: Capability,
     // ICAO aircraft address
@@ -1182,7 +1404,7 @@ impl Default for Capability {
     }
 }
 
-impl AdsbBeastMessage {
+impl AdsbRawMessage {
     /// Converts `ADSBsMessage` to `String`.
     pub fn to_string(&self) -> MessageResult<String> {
         match serde_json::to_string(self) {
@@ -1498,4 +1720,495 @@ pub(crate) fn aircraft_identification_read(
         .collect::<String>();
 
     Ok((inside_rest, encoded))
+}
+
+/// Airborne / Ground and SPI
+#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[deku(type = "u8", bits = "3")]
+pub enum FlightStatus {
+    NoAlertNoSPIAirborne = 0b000,
+    NoAlertNoSPIOnGround = 0b001,
+    AlertNoSPIAirborne = 0b010,
+    AlertNoSPIOnGround = 0b011,
+    AlertSPIAirborneGround = 0b100,
+    NoAlertSPIAirborneGround = 0b101,
+    Reserved = 0b110,
+    NotAssigned = 0b111,
+}
+
+impl fmt::Display for FlightStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::NoAlertNoSPIAirborne
+                | Self::AlertSPIAirborneGround
+                | Self::NoAlertSPIAirborneGround => "airborne?",
+                Self::NoAlertNoSPIOnGround => "ground?",
+                Self::AlertNoSPIAirborne => "airborne",
+                Self::AlertNoSPIOnGround => "ground",
+                _ => "reserved",
+            }
+        )
+    }
+}
+
+/// Type of `DownlinkRequest`
+#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[deku(type = "u8", bits = "5")]
+pub enum DownlinkRequest {
+    None = 0b00000,
+    RequestSendCommB = 0b00001,
+    CommBBroadcastMsg1 = 0b00100,
+    CommBBroadcastMsg2 = 0b00101,
+    #[deku(id_pat = "_")]
+    Unknown,
+}
+
+/// 13 bit encoded altitude
+#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+pub struct AC13Field(#[deku(reader = "Self::read(deku::rest)")] pub u16);
+
+impl AC13Field {
+    // TODO Add unit
+    fn read(rest: &BitSlice<u8, Msb0>) -> result::Result<(&BitSlice<u8, Msb0>, u16), DekuError> {
+        let (rest, num) = u32::read(rest, (deku::ctx::Endian::Big, deku::ctx::BitSize(13)))?;
+
+        let m_bit = num & 0x0040;
+        let q_bit = num & 0x0010;
+
+        if m_bit != 0 {
+            // TODO: this might be wrong?
+            Ok((rest, 0))
+        } else if q_bit != 0 {
+            let n = ((num & 0x1f80) >> 2) | ((num & 0x0020) >> 1) | (num & 0x000f);
+            let n = n * 25;
+            if n > 1000 {
+                Ok((rest, (n - 1000) as u16))
+            } else {
+                // TODO: add error
+                Ok((rest, 0))
+            }
+        } else {
+            // TODO 11 bit gillham coded altitude
+            if let Ok(n) = mode_a_to_mode_c(decode_id13_field(num)) {
+                Ok((rest, (100 * n) as u16))
+            } else {
+                Ok((rest, 0))
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+pub struct UtilityMessage {
+    #[deku(bits = "4")]
+    pub iis: u8,
+    pub ids: UtilityMessageType,
+}
+
+/// Message Type
+#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[deku(type = "u8", bits = "2")]
+pub enum UtilityMessageType {
+    NoInformation = 0b00,
+    CommB = 0b01,
+    CommC = 0b10,
+    CommD = 0b11,
+}
+
+/// Uplink / Downlink
+#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[deku(type = "u8", bits = "1")]
+pub enum KE {
+    DownlinkELMTx = 0,
+    UplinkELMAck = 1,
+}
+
+#[derive(Debug, PartialEq, Eq, DekuRead, Clone, Serialize, Deserialize)]
+#[deku(type = "u8", bits = "8")]
+pub enum BDS {
+    /// (1, 0) Table A-2-16
+    #[deku(id = "0x00")]
+    Empty([u8; 6]),
+
+    /// (1, 0) Table A-2-16
+    #[deku(id = "0x10")]
+    DataLinkCapability(DataLinkCapability),
+
+    /// (2, 0) Table A-2-32
+    #[deku(id = "0x20")]
+    AircraftIdentification(#[deku(reader = "aircraft_identification_read(deku::rest)")] String),
+
+    #[deku(id_pat = "_")]
+    Unknown([u8; 6]),
+}
+
+impl fmt::Display for BDS {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Empty(_) => {
+                writeln!(f, "Comm-B format: empty response")?;
+            }
+            Self::AircraftIdentification(s) => {
+                writeln!(f, "Comm-B format: BDS2,0 Aircraft identification")?;
+                writeln!(f, "  Ident:         {s}")?;
+            }
+            Self::DataLinkCapability(_) => {
+                writeln!(f, "Comm-B format: BDS1,0 Datalink capabilities")?;
+            }
+            Self::Unknown(_) => {
+                writeln!(f, "Comm-B format: unknown format")?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// To report the data link capability of the Mode S transponder/data link installation
+#[derive(Debug, PartialEq, Eq, DekuRead, Clone, Serialize, Deserialize)]
+pub struct DataLinkCapability {
+    #[deku(bits = "1")]
+    #[deku(pad_bits_after = "5")] // reserved
+    pub continuation_flag: bool,
+    #[deku(bits = "1")]
+    pub overlay_command_capability: bool,
+    #[deku(bits = "1")]
+    pub acas: bool,
+    #[deku(bits = "7")]
+    pub mode_s_subnetwork_version_number: u8,
+    #[deku(bits = "1")]
+    pub transponder_enhanced_protocol_indicator: bool,
+    #[deku(bits = "1")]
+    pub mode_s_specific_services_capability: bool,
+    #[deku(bits = "3")]
+    pub uplink_elm_average_throughput_capability: u8,
+    #[deku(bits = "4")]
+    pub downlink_elm: u8,
+    #[deku(bits = "1")]
+    pub aircraft_identification_capability: bool,
+    #[deku(bits = "1")]
+    pub squitter_capability_subfield: bool,
+    #[deku(bits = "1")]
+    pub surveillance_identifier_code: bool,
+    #[deku(bits = "1")]
+    pub common_usage_gicb_capability_report: bool,
+    #[deku(bits = "4")]
+    pub reserved_acas: u8,
+    pub bit_array: u16,
+}
+
+/// 13 bit identity code
+#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+pub struct IdentityCode(#[deku(reader = "Self::read(deku::rest)")] pub u16);
+
+impl IdentityCode {
+    fn read(rest: &BitSlice<u8, Msb0>) -> result::Result<(&BitSlice<u8, Msb0>, u16), DekuError> {
+        let (rest, num) = u32::read(rest, (deku::ctx::Endian::Big, deku::ctx::BitSize(13)))?;
+
+        let c1 = (num & 0b1_0000_0000_0000) >> 12;
+        let a1 = (num & 0b0_1000_0000_0000) >> 11;
+        let c2 = (num & 0b0_0100_0000_0000) >> 10;
+        let a2 = (num & 0b0_0010_0000_0000) >> 9;
+        let c4 = (num & 0b0_0001_0000_0000) >> 8;
+        let a4 = (num & 0b0_0000_1000_0000) >> 7;
+        let b1 = (num & 0b0_0000_0010_0000) >> 5;
+        let d1 = (num & 0b0_0000_0001_0000) >> 4;
+        let b2 = (num & 0b0_0000_0000_1000) >> 3;
+        let d2 = (num & 0b0_0000_0000_0100) >> 2;
+        let b4 = (num & 0b0_0000_0000_0010) >> 1;
+        let d4 = num & 0b0_0000_0000_0001;
+
+        let a = a4 << 2 | a2 << 1 | a1;
+        let b = b4 << 2 | b2 << 1 | b1;
+        let c = c4 << 2 | c2 << 1 | c1;
+        let d = d4 << 2 | d2 << 1 | d1;
+
+        let num: u16 = (a << 12 | b << 8 | c << 4 | d) as u16;
+        Ok((rest, num))
+    }
+}
+
+pub const CRC_TABLE: [u32; 256] = [
+    0x0000_0000,
+    0x00ff_f409,
+    0x0000_1c1b,
+    0x00ff_e812,
+    0x0000_3836,
+    0x00ff_cc3f,
+    0x0000_242d,
+    0x00ff_d024,
+    0x0000_706c,
+    0x00ff_8465,
+    0x0000_6c77,
+    0x00ff_987e,
+    0x0000_485a,
+    0x00ff_bc53,
+    0x0000_5441,
+    0x00ff_a048,
+    0x0000_e0d8,
+    0x00ff_14d1,
+    0x0000_fcc3,
+    0x00ff_08ca,
+    0x0000_d8ee,
+    0x00ff_2ce7,
+    0x0000_c4f5,
+    0x00ff_30fc,
+    0x0000_90b4,
+    0x00ff_64bd,
+    0x0000_8caf,
+    0x00ff_78a6,
+    0x0000_a882,
+    0x00ff_5c8b,
+    0x0000_b499,
+    0x00ff_4090,
+    0x0001_c1b0,
+    0x00fe_35b9,
+    0x0001_ddab,
+    0x00fe_29a2,
+    0x0001_f986,
+    0x00fe_0d8f,
+    0x0001_e59d,
+    0x00fe_1194,
+    0x0001_b1dc,
+    0x00fe_45d5,
+    0x0001_adc7,
+    0x00fe_59ce,
+    0x0001_89ea,
+    0x00fe_7de3,
+    0x0001_95f1,
+    0x00fe_61f8,
+    0x0001_2168,
+    0x00fe_d561,
+    0x0001_3d73,
+    0x00fe_c97a,
+    0x0001_195e,
+    0x00fe_ed57,
+    0x0001_0545,
+    0x00fe_f14c,
+    0x0001_5104,
+    0x00fe_a50d,
+    0x0001_4d1f,
+    0x00fe_b916,
+    0x0001_6932,
+    0x00fe_9d3b,
+    0x0001_7529,
+    0x00fe_8120,
+    0x0003_8360,
+    0x00fc_7769,
+    0x0003_9f7b,
+    0x00fc_6b72,
+    0x0003_bb56,
+    0x00fc_4f5f,
+    0x0003_a74d,
+    0x00fc_5344,
+    0x0003_f30c,
+    0x00fc_0705,
+    0x0003_ef17,
+    0x00fc_1b1e,
+    0x0003_cb3a,
+    0x00fc_3f33,
+    0x0003_d721,
+    0x00fc_2328,
+    0x0003_63b8,
+    0x00fc_97b1,
+    0x0003_7fa3,
+    0x00fc_8baa,
+    0x0003_5b8e,
+    0x00fc_af87,
+    0x0003_4795,
+    0x00fc_b39c,
+    0x0003_13d4,
+    0x00fc_e7dd,
+    0x0003_0fcf,
+    0x00fc_fbc6,
+    0x0003_2be2,
+    0x00fc_dfeb,
+    0x0003_37f9,
+    0x00fc_c3f0,
+    0x0002_42d0,
+    0x00fd_b6d9,
+    0x0002_5ecb,
+    0x00fd_aac2,
+    0x0002_7ae6,
+    0x00fd_8eef,
+    0x0002_66fd,
+    0x00fd_92f4,
+    0x0002_32bc,
+    0x00fd_c6b5,
+    0x0002_2ea7,
+    0x00fd_daae,
+    0x0002_0a8a,
+    0x00fd_fe83,
+    0x0002_1691,
+    0x00fd_e298,
+    0x0002_a208,
+    0x00fd_5601,
+    0x0002_be13,
+    0x00fd_4a1a,
+    0x0002_9a3e,
+    0x00fd_6e37,
+    0x0002_8625,
+    0x00fd_722c,
+    0x0002_d264,
+    0x00fd_266d,
+    0x0002_ce7f,
+    0x00fd_3a76,
+    0x0002_ea52,
+    0x00fd_1e5b,
+    0x0002_f649,
+    0x00fd_0240,
+    0x0007_06c0,
+    0x00f8_f2c9,
+    0x0007_1adb,
+    0x00f8_eed2,
+    0x0007_3ef6,
+    0x00f8_caff,
+    0x0007_22ed,
+    0x00f8_d6e4,
+    0x0007_76ac,
+    0x00f8_82a5,
+    0x0007_6ab7,
+    0x00f8_9ebe,
+    0x0007_4e9a,
+    0x00f8_ba93,
+    0x0007_5281,
+    0x00f8_a688,
+    0x0007_e618,
+    0x00f8_1211,
+    0x0007_fa03,
+    0x00f8_0e0a,
+    0x0007_de2e,
+    0x00f8_2a27,
+    0x0007_c235,
+    0x00f8_363c,
+    0x0007_9674,
+    0x00f8_627d,
+    0x0007_8a6f,
+    0x00f8_7e66,
+    0x0007_ae42,
+    0x00f8_5a4b,
+    0x0007_b259,
+    0x00f8_4650,
+    0x0006_c770,
+    0x00f9_3379,
+    0x0006_db6b,
+    0x00f9_2f62,
+    0x0006_ff46,
+    0x00f9_0b4f,
+    0x0006_e35d,
+    0x00f9_1754,
+    0x0006_b71c,
+    0x00f9_4315,
+    0x0006_ab07,
+    0x00f9_5f0e,
+    0x0006_8f2a,
+    0x00f9_7b23,
+    0x0006_9331,
+    0x00f9_6738,
+    0x0006_27a8,
+    0x00f9_d3a1,
+    0x0006_3bb3,
+    0x00f9_cfba,
+    0x0006_1f9e,
+    0x00f9_eb97,
+    0x0006_0385,
+    0x00f9_f78c,
+    0x0006_57c4,
+    0x00f9_a3cd,
+    0x0006_4bdf,
+    0x00f9_bfd6,
+    0x0006_6ff2,
+    0x00f9_9bfb,
+    0x0006_73e9,
+    0x00f9_87e0,
+    0x0004_85a0,
+    0x00fb_71a9,
+    0x0004_99bb,
+    0x00fb_6db2,
+    0x0004_bd96,
+    0x00fb_499f,
+    0x0004_a18d,
+    0x00fb_5584,
+    0x0004_f5cc,
+    0x00fb_01c5,
+    0x0004_e9d7,
+    0x00fb_1dde,
+    0x0004_cdfa,
+    0x00fb_39f3,
+    0x0004_d1e1,
+    0x00fb_25e8,
+    0x0004_6578,
+    0x00fb_9171,
+    0x0004_7963,
+    0x00fb_8d6a,
+    0x0004_5d4e,
+    0x00fb_a947,
+    0x0004_4155,
+    0x00fb_b55c,
+    0x0004_1514,
+    0x00fb_e11d,
+    0x0004_090f,
+    0x00fb_fd06,
+    0x0004_2d22,
+    0x00fb_d92b,
+    0x0004_3139,
+    0x00fb_c530,
+    0x0005_4410,
+    0x00fa_b019,
+    0x0005_580b,
+    0x00fa_ac02,
+    0x0005_7c26,
+    0x00fa_882f,
+    0x0005_603d,
+    0x00fa_9434,
+    0x0005_347c,
+    0x00fa_c075,
+    0x0005_2867,
+    0x00fa_dc6e,
+    0x0005_0c4a,
+    0x00fa_f843,
+    0x0005_1051,
+    0x00fa_e458,
+    0x0005_a4c8,
+    0x00fa_50c1,
+    0x0005_b8d3,
+    0x00fa_4cda,
+    0x0005_9cfe,
+    0x00fa_68f7,
+    0x0005_80e5,
+    0x00fa_74ec,
+    0x0005_d4a4,
+    0x00fa_20ad,
+    0x0005_c8bf,
+    0x00fa_3cb6,
+    0x0005_ec92,
+    0x00fa_189b,
+    0x0005_f089,
+    0x00fa_0480,
+];
+
+pub fn modes_checksum(message: &[u8], bits: usize) -> result::Result<u32, DekuError> {
+    let mut rem: u32 = 0;
+    let n = bits / 8;
+
+    if (n < 3) || (message.len() < n) {
+        return Err(DekuError::Incomplete(NeedSize::new(4)));
+    }
+
+    for i in 0..(n - 3) {
+        rem =
+            (rem << 8) ^ CRC_TABLE[(u32::from(message[i]) ^ ((rem & 0x00ff_0000) >> 16)) as usize];
+        rem &= 0x00ff_ffff;
+    }
+
+    let msg_1 = u32::from(message[n - 3]) << 16;
+    let msg_2 = u32::from(message[n - 2]) << 8;
+    let msg_3 = u32::from(message[n - 1]);
+    let xor_term: u32 = msg_1 ^ msg_2 ^ msg_3;
+
+    rem ^= xor_term;
+
+    Ok(rem)
 }

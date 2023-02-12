@@ -6,8 +6,8 @@ extern crate log;
 use deku::prelude::*;
 use error_handling::deserialization_error::DeserializationError;
 use message_types::acars::AcarsMessage;
-use message_types::adsb_beast::AdsbBeastMessage;
 use message_types::adsb_json::AdsbJsonMessage;
+use message_types::adsb_raw::AdsbRawMessage;
 use message_types::vdlm2::Vdlm2Message;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -39,11 +39,11 @@ impl DecodeMessage for String {
         }
 
         //let bincode = bincode::deserialize::<DecodedMessage>(self.as_bytes());
-        let deku_decoded = AdsbBeastMessage::from_bytes((self.as_bytes(), 0));
+        let deku_decoded = AdsbRawMessage::from_bytes((self.as_bytes(), 0));
 
         if !deku_decoded.is_err() {
             // FIXME: This is hardly idiomatic Rust, but I just want it to work
-            let (rest, deku_decoded) = deku_decoded.unwrap();
+            let (_, deku_decoded) = deku_decoded.unwrap();
             return MessageResult::Ok(DecodedMessage::AdsbBeastMessage(deku_decoded));
         }
 
@@ -67,11 +67,11 @@ impl DecodeMessage for str {
 
         //let bincode = bincode::deserialize::<DecodedMessage>(self.as_bytes());
 
-        let deku_decoded = AdsbBeastMessage::from_bytes((self.as_bytes(), 0));
+        let deku_decoded = AdsbRawMessage::from_bytes((self.as_bytes(), 0));
 
         if !deku_decoded.is_err() {
             // FIXME: This is hardly idiomatic Rust, but I just want it to work
-            let (rest, deku_decoded) = deku_decoded.unwrap();
+            let (_, deku_decoded) = deku_decoded.unwrap();
             return MessageResult::Ok(DecodedMessage::AdsbBeastMessage(deku_decoded));
         }
 
@@ -92,7 +92,7 @@ impl DecodeMessage for Vec<u8> {
 
         //let bincode = bincode::deserialize::<DecodedMessage>(self);
 
-        let deku_decoded = AdsbBeastMessage::from_bytes((self, 0));
+        let deku_decoded = AdsbRawMessage::from_bytes((self, 0));
 
         if !deku_decoded.is_err() {
             // FIXME: This is hardly idiomatic Rust, but I just want it to work
@@ -229,7 +229,7 @@ impl DecodedMessage {
             DecodedMessage::Vdlm2Message(vdlm2) => vdlm2.get_time(),
             DecodedMessage::AcarsMessage(acars) => acars.get_time(),
             DecodedMessage::AdsbJsonMessage(adsb_json) => adsb_json.get_time(),
-            DecodedMessage::AdsbBeastMessage(adsb_beast) => adsb_beast.get_time(),
+            DecodedMessage::AdsbBeastMessage(adsb_raw) => adsb_raw.get_time(),
         }
     }
 
@@ -333,7 +333,7 @@ pub enum DecodedMessage {
     Vdlm2Message(Vdlm2Message),
     AcarsMessage(AcarsMessage),
     AdsbJsonMessage(AdsbJsonMessage),
-    AdsbBeastMessage(AdsbBeastMessage),
+    AdsbBeastMessage(AdsbRawMessage),
 }
 
 impl Default for DecodedMessage {
