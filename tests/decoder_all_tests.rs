@@ -2,7 +2,8 @@ use crate::common::{
     combine_files_of_message_type, compare_errors, test_enum_serialisation, MessageType,
     SerialisationTarget,
 };
-use acars_vdlm2_parser::{DecodeMessage, DecodedMessage, DeserializatonError};
+use acars_vdlm2_parser::error_handling::deserialization_error::DeserializationError;
+use acars_vdlm2_parser::{DecodeMessage, DecodedMessage};
 use rand::prelude::{SliceRandom, ThreadRng};
 use rand::thread_rng;
 use std::error::Error;
@@ -48,7 +49,7 @@ fn test_determining_message() -> Result<(), Box<dyn Error>> {
                 println!("{}{}", line, length);
                 compare_errors(
                     line.decode_message().err(),
-                    serde_json::from_str(&line).map_err(|e| DeserializatonError::SerdeError(e)),
+                    serde_json::from_str(&line).map_err(|e| DeserializationError::SerdeError(e)),
                     &line,
                 );
             }

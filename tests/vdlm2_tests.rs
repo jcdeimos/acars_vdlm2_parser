@@ -4,8 +4,8 @@ use crate::common::{
     combine_files_of_message_type, compare_errors, load_files_of_message_type,
     process_file_as_vdlm2, MessageType,
 };
-use acars_vdlm2_parser::vdlm2::{NewVdlm2Message, Vdlm2Message};
-use acars_vdlm2_parser::DeserializatonError;
+use acars_vdlm2_parser::error_handling::deserialization_error::DeserializationError;
+use acars_vdlm2_parser::message_types::vdlm2::{NewVdlm2Message, Vdlm2Message};
 use std::error::Error;
 
 /// This test will ingest contents from the vdlm2 sample files as a message per line to a `Vec<String>`.
@@ -36,7 +36,7 @@ fn test_vdlm2_parsing() -> Result<(), Box<dyn Error>> {
             for line in failed_decodes {
                 compare_errors(
                     line.to_vdlm2().err(),
-                    serde_json::from_str(&line).map_err(|e| DeserializatonError::SerdeError(e)),
+                    serde_json::from_str(&line).map_err(|e| DeserializationError::SerdeError(e)),
                     &line,
                 );
             }

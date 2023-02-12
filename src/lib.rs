@@ -3,40 +3,22 @@ extern crate serde_json;
 #[macro_use]
 extern crate log;
 
-use crate::acars::AcarsMessage;
-use crate::adsb_beast::AdsbBeastMessage;
-use crate::adsb_json::AdsbJsonMessage;
-use crate::vdlm2::Vdlm2Message;
-use bincode;
+use deku::prelude::*;
+use error_handling::deserialization_error::DeserializationError;
+use message_types::acars::AcarsMessage;
+use message_types::adsb_beast::AdsbBeastMessage;
+use message_types::adsb_json::AdsbJsonMessage;
+use message_types::vdlm2::Vdlm2Message;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub mod acars;
-pub mod adsb_beast;
-pub mod adsb_json;
-pub mod vdlm2;
-
-#[derive(Debug)]
-pub enum DeserializatonError {
-    SerdeError(serde_json::error::Error),
-    BoxError(Box<bincode::ErrorKind>),
-    All(serde_json::error::Error, Box<bincode::ErrorKind>),
-}
-
-impl std::fmt::Display for DeserializatonError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            DeserializatonError::SerdeError(e) => write!(f, "Serde error: {}", e),
-            DeserializatonError::BoxError(e) => write!(f, "Box error: {}", e),
-            DeserializatonError::All(e, e2) => write!(f, "Serde error: {}, Box error: {}", e, e2),
-        }
-    }
-}
+pub mod error_handling;
+pub mod message_types;
 
 /// Common return type for all serialisation/deserialisation functions.
 ///
 /// This serves as a wrapper for `serde_json::Error` as the Error type.
-pub type MessageResult<T> = Result<T, DeserializatonError>;
+pub type MessageResult<T> = Result<T, DeserializationError>;
 
 /// Trait for performing a decode if you wish to apply it to types other than the defaults done in this library.
 ///
@@ -53,18 +35,21 @@ impl DecodeMessage for String {
         let serde = serde_json::from_str(self);
 
         if !serde.is_err() {
-            return serde.map_err(|e| DeserializatonError::SerdeError(e));
+            return serde.map_err(|e| DeserializationError::SerdeError(e));
         }
 
-        let bincode = bincode::deserialize::<DecodedMessage>(self.as_bytes());
+        //let bincode = bincode::deserialize::<DecodedMessage>(self.as_bytes());
+        let deku_decoded = AdsbBeastMessage::from_bytes((self.as_bytes(), 0));
 
-        if !bincode.is_err() {
-            return bincode.map_err(|e| DeserializatonError::BoxError(e));
+        if !deku_decoded.is_err() {
+            // FIXME: This is hardly idiomatic Rust, but I just want it to work
+            let (rest, deku_decoded) = deku_decoded.unwrap();
+            return MessageResult::Ok(DecodedMessage::AdsbBeastMessage(deku_decoded));
         }
 
-        Err(DeserializatonError::All(
+        Err(DeserializationError::All(
             serde.unwrap_err(),
-            bincode.unwrap_err(),
+            deku_decoded.unwrap_err(),
         ))
     }
 }
@@ -77,18 +62,22 @@ impl DecodeMessage for str {
         let serde = serde_json::from_str(self);
 
         if !serde.is_err() {
-            return serde.map_err(|e| DeserializatonError::SerdeError(e));
+            return serde.map_err(|e| DeserializationError::SerdeError(e));
         }
 
-        let bincode = bincode::deserialize::<DecodedMessage>(self.as_bytes());
+        //let bincode = bincode::deserialize::<DecodedMessage>(self.as_bytes());
 
-        if !bincode.is_err() {
-            return bincode.map_err(|e| DeserializatonError::BoxError(e));
+        let deku_decoded = AdsbBeastMessage::from_bytes((self.as_bytes(), 0));
+
+        if !deku_decoded.is_err() {
+            // FIXME: This is hardly idiomatic Rust, but I just want it to work
+            let (rest, deku_decoded) = deku_decoded.unwrap();
+            return MessageResult::Ok(DecodedMessage::AdsbBeastMessage(deku_decoded));
         }
 
-        Err(DeserializatonError::All(
+        Err(DeserializationError::All(
             serde.unwrap_err(),
-            bincode.unwrap_err(),
+            deku_decoded.unwrap_err(),
         ))
     }
 }
@@ -98,18 +87,22 @@ impl DecodeMessage for Vec<u8> {
         let serde = serde_json::from_slice(self);
 
         if !serde.is_err() {
-            return serde.map_err(|e| DeserializatonError::SerdeError(e));
+            return serde.map_err(|e| DeserializationError::SerdeError(e));
         }
 
-        let bincode = bincode::deserialize::<DecodedMessage>(self);
+        //let bincode = bincode::deserialize::<DecodedMessage>(self);
 
-        if !bincode.is_err() {
-            return bincode.map_err(|e| DeserializatonError::BoxError(e));
+        let deku_decoded = AdsbBeastMessage::from_bytes((self, 0));
+
+        if !deku_decoded.is_err() {
+            // FIXME: This is hardly idiomatic Rust, but I just want it to work
+            let (_, deku_decoded) = deku_decoded.unwrap();
+            return MessageResult::Ok(DecodedMessage::AdsbBeastMessage(deku_decoded));
         }
 
-        Err(DeserializatonError::All(
+        Err(DeserializationError::All(
             serde.unwrap_err(),
-            bincode.unwrap_err(),
+            deku_decoded.unwrap_err(),
         ))
     }
 }
@@ -120,7 +113,7 @@ impl DecodedMessage {
     pub fn to_string(&self) -> MessageResult<String> {
         trace!("Converting {:?} to a string", &self);
         match serde_json::to_string(self) {
-            Err(to_string_error) => Err(DeserializatonError::SerdeError(to_string_error)),
+            Err(to_string_error) => Err(DeserializationError::SerdeError(to_string_error)),
             Ok(string) => Ok(string),
         }
     }
@@ -129,7 +122,7 @@ impl DecodedMessage {
     pub fn to_string_newline(&self) -> MessageResult<String> {
         trace!("Converting {:?} to a string and appending a newline", &self);
         match serde_json::to_string(self) {
-            Err(to_string_error) => Err(DeserializatonError::SerdeError(to_string_error)),
+            Err(to_string_error) => Err(DeserializationError::SerdeError(to_string_error)),
             Ok(string) => Ok(format!("{}\n", string)),
         }
     }

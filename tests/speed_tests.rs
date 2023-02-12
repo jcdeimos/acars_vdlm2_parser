@@ -5,10 +5,11 @@ use crate::common::{
     ContentDuplicator, MessageType, RunDurations, SerialisationTarget, SpeedTestComparisons,
     SpeedTestType, Stopwatch, StopwatchType, TestFileType,
 };
+use acars_vdlm2_parser::message_types::adsb_beast::AdsbBeastMessage;
 use acars_vdlm2_parser::{DecodeMessage, DecodedMessage};
-use bincode;
 use byte_unit::Byte;
 use chrono::Utc;
+use deku::prelude::*;
 use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
 use rand::thread_rng;
@@ -204,12 +205,15 @@ impl SpeedTest for i64 {
                         }
                     }
                     TestFileType::U8(line_as_bytes) => {
-                        if let Ok(decoded_message) = bincode::deserialize::<Value>(&line_as_bytes) {
-                            successfully_decoded_items
-                                .lock()
-                                .unwrap()
-                                .push(decoded_message);
-                        }
+                        // FIXME: Re-enable this once the Beast message is fixed
+                        // if let Ok((_, decoded_message)) =
+                        //     AdsbBeastMessage::from_bytes((&line_as_bytes, 0))
+                        // {
+                        //     successfully_decoded_items
+                        //         .lock()
+                        //         .unwrap()
+                        //         .push(decoded_message);
+                        // }
                     }
                 });
                 deserialisation_run_stopwatch.stop();

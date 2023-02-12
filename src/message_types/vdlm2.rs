@@ -1,4 +1,5 @@
-use crate::{AppDetails, DeserializatonError, MessageResult};
+use crate::error_handling::deserialization_error::DeserializationError;
+use crate::{AppDetails, MessageResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::num::ParseFloatError;
@@ -19,7 +20,7 @@ impl NewVdlm2Message for String {
     fn to_vdlm2(&self) -> MessageResult<Vdlm2Message> {
         match serde_json::from_str(self) {
             Ok(v) => Ok(v),
-            Err(e) => Err(DeserializatonError::SerdeError(e)),
+            Err(e) => Err(DeserializationError::SerdeError(e)),
         }
     }
 }
@@ -31,7 +32,7 @@ impl NewVdlm2Message for str {
     fn to_vdlm2(&self) -> MessageResult<Vdlm2Message> {
         match serde_json::from_str(self) {
             Ok(v) => Ok(v),
-            Err(e) => Err(DeserializatonError::SerdeError(e)),
+            Err(e) => Err(DeserializationError::SerdeError(e)),
         }
     }
 }
@@ -42,7 +43,7 @@ impl Vdlm2Message {
     pub fn to_string(&self) -> MessageResult<String> {
         match serde_json::to_string(self) {
             Ok(v) => Ok(v),
-            Err(e) => Err(DeserializatonError::SerdeError(e)),
+            Err(e) => Err(DeserializationError::SerdeError(e)),
         }
     }
 
@@ -50,7 +51,7 @@ impl Vdlm2Message {
     pub fn to_string_newline(&self) -> MessageResult<String> {
         let data = serde_json::to_string(self);
         match data {
-            Err(to_string_error) => Err(DeserializatonError::SerdeError(to_string_error)),
+            Err(to_string_error) => Err(DeserializationError::SerdeError(to_string_error)),
             Ok(string) => Ok(format!("{}\n", string)),
         }
     }

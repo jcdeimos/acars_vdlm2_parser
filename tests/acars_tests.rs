@@ -4,8 +4,8 @@ use crate::common::{
     combine_files_of_message_type, compare_errors, load_files_of_message_type,
     process_file_as_acars, MessageType,
 };
-use acars_vdlm2_parser::acars::{AcarsMessage, NewAcarsMessage};
-use acars_vdlm2_parser::DeserializatonError;
+use acars_vdlm2_parser::error_handling::deserialization_error::DeserializationError;
+use acars_vdlm2_parser::message_types::acars::{AcarsMessage, NewAcarsMessage};
 use std::error::Error;
 
 /// This test will ingest contents from the acars sample files as a message per line to a `Vec<String>`.
@@ -37,7 +37,7 @@ fn test_acars_parsing() -> Result<(), Box<dyn Error>> {
             for line in failed_decodes {
                 compare_errors(
                     line.to_acars().err(),
-                    serde_json::from_str(&line).map_err(|e| DeserializatonError::SerdeError(e)),
+                    serde_json::from_str(&line).map_err(|e| DeserializationError::SerdeError(e)),
                     &line,
                 );
             }
