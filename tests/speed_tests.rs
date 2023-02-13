@@ -107,7 +107,7 @@ impl SpeedTest for i64 {
                 test_message_queue.par_iter().for_each(|entry| {
                     match entry {
                         common::TestFileType::String(line_as_string) => {
-                            match line_as_string.decode_message() {
+                            match line_as_string.decode_json() {
                                 Err(_) => {}
                                 Ok(json_message) => successfully_decoded_items
                                     .lock()
@@ -115,7 +115,7 @@ impl SpeedTest for i64 {
                                     .push(json_message),
                             }
                         }
-                        common::TestFileType::U8(line_as_u8) => match line_as_u8.decode_message() {
+                        common::TestFileType::U8(line_as_u8) => match line_as_u8.decode_json() {
                             Err(_) => {}
                             Ok(bit_message) => {
                                 successfully_decoded_items.lock().unwrap().push(bit_message)

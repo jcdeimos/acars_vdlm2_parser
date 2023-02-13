@@ -12,8 +12,22 @@ use message_types::vdlm2::Vdlm2Message;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub mod error_handling;
-pub mod message_types;
+pub mod error_handling {
+    pub mod deserialization_error;
+}
+
+pub mod message_types {
+    pub mod acars;
+    pub mod adsb_json;
+    pub mod adsb_raw;
+    pub mod vdlm2;
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ExpectedMessageType {
+    Json,
+    Raw
+}
 
 /// Common return type for all serialisation/deserialisation functions.
 ///
@@ -24,33 +38,34 @@ pub type MessageResult<T> = Result<T, DeserializationError>;
 ///
 /// The originating data must be in JSON format and have support for providing a `str`, and will not consume the source.
 pub trait DecodeMessage {
-    fn decode_message(&self) -> MessageResult<DecodedMessage>;
+    fn decode_message(&self, message_type: ExpectedMessageType) -> MessageResult<DecodedMessage>;
+    fn decode_json(&self) -> MessageResult<DecodedMessage>;
+    fn decode_adsb_raw(&self) -> MessageResult<DecodedMessage>;
 }
 
 /// Provides functionality for decoding a `String` to `DecodedMessage`.
 ///
 /// This does not consume the `String`.
 impl DecodeMessage for String {
-    fn decode_message(&self) -> MessageResult<DecodedMessage> {
-        let serde = serde_json::from_str(self);
-
-        if !serde.is_err() {
-            return serde.map_err(|e| DeserializationError::SerdeError(e));
+    fn decode_message(&self, message_type: ExpectedMessageType) -> MessageResult<DecodedMessage> {
+        match message_type {
+            ExpectedMessageType::Json => self.decode_json(),
+            ExpectedMessageType::Raw => self.decode_adsb_raw()
         }
-
-        //let bincode = bincode::deserialize::<DecodedMessage>(self.as_bytes());
-        let deku_decoded = AdsbRawMessage::from_bytes((self.as_bytes(), 0));
-
-        if !deku_decoded.is_err() {
-            // FIXME: This is hardly idiomatic Rust, but I just want it to work
-            let (_, deku_decoded) = deku_decoded.unwrap();
-            return MessageResult::Ok(DecodedMessage::AdsbRawMessage(deku_decoded));
+    }
+    
+    fn decode_json(&self) -> MessageResult<DecodedMessage> {
+        match serde_json::from_str(self) {
+            Err(json_error) => Err(json_error.into()),
+            Ok(payload) => Ok(payload)
         }
-
-        Err(DeserializationError::All(
-            serde.unwrap_err(),
-            deku_decoded.unwrap_err(),
-        ))
+    }
+    
+    fn decode_adsb_raw(&self) -> MessageResult<DecodedMessage> {
+        match AdsbRawMessage::from_bytes((self.as_bytes(), 0)) {
+            Err(deku_error) => Err(deku_error.into()),
+            Ok((_details, decoded_message)) => Ok(DecodedMessage::AdsbRawMessage(decoded_message)),
+        }
     }
 }
 
@@ -58,52 +73,48 @@ impl DecodeMessage for String {
 ///
 /// This does not consume the `str`.
 impl DecodeMessage for str {
-    fn decode_message(&self) -> MessageResult<DecodedMessage> {
-        let serde = serde_json::from_str(self);
-
-        if !serde.is_err() {
-            return serde.map_err(|e| DeserializationError::SerdeError(e));
+    fn decode_message(&self, message_type: ExpectedMessageType) -> MessageResult<DecodedMessage> {
+        match message_type {
+            ExpectedMessageType::Json => self.decode_json(),
+            ExpectedMessageType::Raw => self.decode_adsb_raw()
         }
-
-        //let bincode = bincode::deserialize::<DecodedMessage>(self.as_bytes());
-
-        let deku_decoded = AdsbRawMessage::from_bytes((self.as_bytes(), 0));
-
-        if !deku_decoded.is_err() {
-            // FIXME: This is hardly idiomatic Rust, but I just want it to work
-            let (_, deku_decoded) = deku_decoded.unwrap();
-            return MessageResult::Ok(DecodedMessage::AdsbRawMessage(deku_decoded));
+    }
+    
+    fn decode_json(&self) -> MessageResult<DecodedMessage> {
+        match serde_json::from_str(self) {
+            Err(json_error) => Err(json_error.into()),
+            Ok(payload) => Ok(payload)
         }
-
-        Err(DeserializationError::All(
-            serde.unwrap_err(),
-            deku_decoded.unwrap_err(),
-        ))
+    }
+    
+    fn decode_adsb_raw(&self) -> MessageResult<DecodedMessage> {
+        match AdsbRawMessage::from_bytes((self.as_bytes(), 0)) {
+            Err(deku_error) => Err(deku_error.into()),
+            Ok((_details, decoded_message)) => Ok(DecodedMessage::AdsbRawMessage(decoded_message)),
+        }
     }
 }
 
 impl DecodeMessage for Vec<u8> {
-    fn decode_message(&self) -> MessageResult<DecodedMessage> {
-        let serde = serde_json::from_slice(self);
-
-        if !serde.is_err() {
-            return serde.map_err(|e| DeserializationError::SerdeError(e));
+    fn decode_message(&self, message_type: ExpectedMessageType) -> MessageResult<DecodedMessage> {
+        match message_type {
+            ExpectedMessageType::Json => self.decode_json(),
+            ExpectedMessageType::Raw => self.decode_adsb_raw()
         }
-
-        //let bincode = bincode::deserialize::<DecodedMessage>(self);
-
-        let deku_decoded = AdsbRawMessage::from_bytes((self, 0));
-
-        if !deku_decoded.is_err() {
-            // FIXME: This is hardly idiomatic Rust, but I just want it to work
-            let (_, deku_decoded) = deku_decoded.unwrap();
-            return MessageResult::Ok(DecodedMessage::AdsbRawMessage(deku_decoded));
+    }
+    
+    fn decode_json(&self) -> MessageResult<DecodedMessage> {
+        match serde_json::from_slice(self) {
+            Err(json_error) => Err(json_error.into()),
+            Ok(payload) => Ok(payload)
         }
-
-        Err(DeserializationError::All(
-            serde.unwrap_err(),
-            deku_decoded.unwrap_err(),
-        ))
+    }
+    
+    fn decode_adsb_raw(&self) -> MessageResult<DecodedMessage> {
+        match AdsbRawMessage::from_bytes((self, 0)) {
+            Err(deku_error) => Err(deku_error.into()),
+            Ok((_details, decoded_message)) => Ok(DecodedMessage::AdsbRawMessage(decoded_message)),
+        }
     }
 }
 
@@ -113,7 +124,7 @@ impl DecodedMessage {
     pub fn to_string(&self) -> MessageResult<String> {
         trace!("Converting {:?} to a string", &self);
         match serde_json::to_string(self) {
-            Err(to_string_error) => Err(DeserializationError::SerdeError(to_string_error)),
+            Err(to_string_error) => Err(to_string_error.into()),
             Ok(string) => Ok(string),
         }
     }
@@ -122,7 +133,7 @@ impl DecodedMessage {
     pub fn to_string_newline(&self) -> MessageResult<String> {
         trace!("Converting {:?} to a string and appending a newline", &self);
         match serde_json::to_string(self) {
-            Err(to_string_error) => Err(DeserializationError::SerdeError(to_string_error)),
+            Err(to_string_error) => Err(to_string_error.into()),
             Ok(string) => Ok(format!("{}\n", string)),
         }
     }

@@ -29,12 +29,12 @@ fn test_determining_message() -> Result<(), Box<dyn Error>> {
             for entry in all_messages {
                 match entry {
                     common::TestFileType::String(line_as_string) => {
-                        match line_as_string.decode_message() {
+                        match line_as_string.decode_json() {
                             Err(_) => failed_decodes.push(line_as_string),
                             Ok(json_message) => successfully_decoded_items.push(json_message),
                         }
                     }
-                    common::TestFileType::U8(line_as_u8) => match line_as_u8.decode_message() {
+                    common::TestFileType::U8(line_as_u8) => match line_as_u8.decode_json() {
                         Err(_) => failed_decodes.push(format!("{:?}", line_as_u8)),
                         Ok(bit_message) => successfully_decoded_items.push(bit_message),
                     },
@@ -48,7 +48,7 @@ fn test_determining_message() -> Result<(), Box<dyn Error>> {
             for line in failed_decodes {
                 println!("{}{}", line, length);
                 compare_errors(
-                    line.decode_message().err(),
+                    line.decode_json().err(),
                     serde_json::from_str(&line).map_err(|e| DeserializationError::SerdeError(e)),
                     &line,
                 );
