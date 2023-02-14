@@ -5,6 +5,7 @@ extern crate log;
 
 use deku::prelude::*;
 use error_handling::deserialization_error::DeserializationError;
+use helpers::encode_adsb_raw_input;
 use message_types::acars::AcarsMessage;
 use message_types::adsb_json::AdsbJsonMessage;
 use message_types::adsb_raw::AdsbRawMessage;
@@ -13,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub mod error_handling {
+    pub mod adsb_raw_error;
     pub mod deserialization_error;
 }
 
@@ -23,10 +25,14 @@ pub mod message_types {
     pub mod vdlm2;
 }
 
+pub mod helpers {
+    pub mod encode_adsb_raw_input;
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ExpectedMessageType {
     Json,
-    Raw
+    Raw,
 }
 
 /// Common return type for all serialisation/deserialisation functions.
@@ -50,17 +56,17 @@ impl DecodeMessage for String {
     fn decode_message(&self, message_type: ExpectedMessageType) -> MessageResult<DecodedMessage> {
         match message_type {
             ExpectedMessageType::Json => self.decode_json(),
-            ExpectedMessageType::Raw => self.decode_adsb_raw()
+            ExpectedMessageType::Raw => self.decode_adsb_raw(),
         }
     }
-    
+
     fn decode_json(&self) -> MessageResult<DecodedMessage> {
         match serde_json::from_str(self) {
             Err(json_error) => Err(json_error.into()),
-            Ok(payload) => Ok(payload)
+            Ok(payload) => Ok(payload),
         }
     }
-    
+
     fn decode_adsb_raw(&self) -> MessageResult<DecodedMessage> {
         match AdsbRawMessage::from_bytes((self.as_bytes(), 0)) {
             Err(deku_error) => Err(deku_error.into()),
@@ -76,17 +82,17 @@ impl DecodeMessage for str {
     fn decode_message(&self, message_type: ExpectedMessageType) -> MessageResult<DecodedMessage> {
         match message_type {
             ExpectedMessageType::Json => self.decode_json(),
-            ExpectedMessageType::Raw => self.decode_adsb_raw()
+            ExpectedMessageType::Raw => self.decode_adsb_raw(),
         }
     }
-    
+
     fn decode_json(&self) -> MessageResult<DecodedMessage> {
         match serde_json::from_str(self) {
             Err(json_error) => Err(json_error.into()),
-            Ok(payload) => Ok(payload)
+            Ok(payload) => Ok(payload),
         }
     }
-    
+
     fn decode_adsb_raw(&self) -> MessageResult<DecodedMessage> {
         match AdsbRawMessage::from_bytes((self.as_bytes(), 0)) {
             Err(deku_error) => Err(deku_error.into()),
@@ -99,17 +105,17 @@ impl DecodeMessage for Vec<u8> {
     fn decode_message(&self, message_type: ExpectedMessageType) -> MessageResult<DecodedMessage> {
         match message_type {
             ExpectedMessageType::Json => self.decode_json(),
-            ExpectedMessageType::Raw => self.decode_adsb_raw()
+            ExpectedMessageType::Raw => self.decode_adsb_raw(),
         }
     }
-    
+
     fn decode_json(&self) -> MessageResult<DecodedMessage> {
         match serde_json::from_slice(self) {
             Err(json_error) => Err(json_error.into()),
-            Ok(payload) => Ok(payload)
+            Ok(payload) => Ok(payload),
         }
     }
-    
+
     fn decode_adsb_raw(&self) -> MessageResult<DecodedMessage> {
         match AdsbRawMessage::from_bytes((self, 0)) {
             Err(deku_error) => Err(deku_error.into()),

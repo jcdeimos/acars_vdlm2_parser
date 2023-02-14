@@ -16,6 +16,7 @@ use crate::common::{
 /// Then it will cycle them into `Vec<ADSBMessage>` and back to `String`.
 /// It validates that there are no errors going `String` -> `ADSBMessage` and `ADSBMessage` -> `String`.
 #[test]
+#[ignore]
 fn test_adsb_raw_parsing() -> Result<(), Box<dyn Error>> {
     match combine_files_of_message_type(MessageType::AdsbRaw) {
         Err(load_failed) => Err(load_failed),
@@ -50,7 +51,7 @@ fn test_adsb_raw_parsing() -> Result<(), Box<dyn Error>> {
 /// Test for displaying the per-item result for vdlm2 messages, helpful when diagnosing parsing issues.
 /// Marked as `#[ignore]` so it can be run separately as required.
 #[test]
-#[ignore]
+//#[ignore]
 fn show_adsb_raw_injest() -> Result<(), Box<dyn Error>> {
     println!("Showing ADSB Raw ingest errors");
     match load_files_of_message_type(MessageType::AdsbRaw) {

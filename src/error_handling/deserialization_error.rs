@@ -1,3 +1,4 @@
+use crate::error_handling::adsb_raw_error::ADSBRawError;
 use deku::error::DekuError;
 use hex::FromHexError;
 use serde_json::Error as SerdeError;
@@ -7,7 +8,7 @@ pub enum DeserializationError {
     SerdeError(serde_json::error::Error),
     DekuError(deku::error::DekuError),
     HexError(FromHexError),
-    All(serde_json::error::Error, deku::error::DekuError),
+    ADSBRawError(ADSBRawError),
 }
 
 impl std::fmt::Display for DeserializationError {
@@ -16,7 +17,7 @@ impl std::fmt::Display for DeserializationError {
             DeserializationError::SerdeError(e) => write!(f, "Serde error: {}", e),
             DeserializationError::DekuError(e) => write!(f, "Deku error: {}", e),
             DeserializationError::HexError(e) => write!(f, "Hex error: {}", e),
-            DeserializationError::All(e, e2) => write!(f, "Serde error: {}, Box error: {}", e, e2),
+            DeserializationError::ADSBRawError(e) => write!(f, "ADSB Raw error: {}", e),
         }
     }
 }
@@ -36,5 +37,11 @@ impl From<SerdeError> for DeserializationError {
 impl From<DekuError> for DeserializationError {
     fn from(value: DekuError) -> Self {
         DeserializationError::DekuError(value)
+    }
+}
+
+impl From<ADSBRawError> for DeserializationError {
+    fn from(value: ADSBRawError) -> Self {
+        DeserializationError::ADSBRawError(value)
     }
 }
