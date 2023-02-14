@@ -1,4 +1,4 @@
-use crate::{DeserializationError, MessageResult};
+use crate::MessageResult;
 use serde::{Deserialize, Serialize};
 
 /// Trait for performing a decode if you wish to apply it to types other than the defaults done in this library.
@@ -17,7 +17,7 @@ impl NewAdsbJsonMessage for String {
     fn to_adsb(&self) -> MessageResult<AdsbJsonMessage> {
         match serde_json::from_str(self) {
             Ok(v) => Ok(v),
-            Err(e) => Err(DeserializationError::SerdeError(e)),
+            Err(e) => Err(e.into()),
         }
     }
 }
@@ -29,7 +29,7 @@ impl NewAdsbJsonMessage for str {
     fn to_adsb(&self) -> MessageResult<AdsbJsonMessage> {
         match serde_json::from_str(self) {
             Ok(v) => Ok(v),
-            Err(e) => Err(DeserializationError::SerdeError(e)),
+            Err(e) => Err(e.into()),
         }
     }
 }
@@ -162,14 +162,14 @@ impl AdsbJsonMessage {
     pub fn to_string(&self) -> MessageResult<String> {
         match serde_json::to_string(self) {
             Ok(v) => Ok(v),
-            Err(e) => Err(DeserializationError::SerdeError(e)),
+            Err(e) => Err(e.into()),
         }
     }
 
     /// Converts `ADSBJsonMessage` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
         match serde_json::to_string(self) {
-            Err(to_string_error) => Err(DeserializationError::SerdeError(to_string_error)),
+            Err(to_string_error) => Err(to_string_error.into()),
             Ok(string) => Ok(format!("{}\n", string)),
         }
     }

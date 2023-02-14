@@ -5,11 +5,9 @@ use crate::common::{
     ContentDuplicator, MessageType, RunDurations, SerialisationTarget, SpeedTestComparisons,
     SpeedTestType, Stopwatch, StopwatchType, TestFileType,
 };
-use acars_vdlm2_parser::message_types::adsb_raw::AdsbRawMessage;
 use acars_vdlm2_parser::{DecodeMessage, DecodedMessage};
 use byte_unit::Byte;
 use chrono::Utc;
-use deku::prelude::*;
 use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
 use rand::thread_rng;

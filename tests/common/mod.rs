@@ -3,7 +3,7 @@ use acars_vdlm2_parser::error_handling::deserialization_error::DeserializationEr
 use acars_vdlm2_parser::helpers::encode_adsb_raw_input::format_adsb_raw_frames_from_bytes;
 use acars_vdlm2_parser::message_types::acars::NewAcarsMessage;
 use acars_vdlm2_parser::message_types::adsb_json::NewAdsbJsonMessage;
-use acars_vdlm2_parser::message_types::adsb_raw::NewAdsbRawMessage;
+use acars_vdlm2_parser::message_types::adsb_raw::{AdsbRawMessage, NewAdsbRawMessage};
 use acars_vdlm2_parser::message_types::vdlm2::NewVdlm2Message;
 use acars_vdlm2_parser::DecodedMessage;
 use byte_unit::Byte;
@@ -501,24 +501,14 @@ pub fn append_lines(file: GlobResult, data: &mut Vec<TestFileType>) -> Result<()
                 }
             } else {
                 let mut contents: Vec<u8> = vec![];
-                let mut reader = BufReader::new(File::open(file_path.as_path())?);
+                let mut reader = File::open(file_path.as_path())?;
                 match reader.read_to_end(&mut contents) {
                     Err(read_error) => Err(read_error.into()),
                     Ok(_) => {
-                        // start of a packet is 0x2a
-                        // loop through file contents and split on 0x2a
-                        let mut message = vec![];
-                        for bit in contents {
-                            if bit == 0x2a && !message.is_empty() {
-                                println!("ADSB_RAW_MESSAGE_LENGTH: {}", message.len());
-                                if !message.is_empty() {
-                                    data.push(message.to_vec().into());
-                                    message = vec![];
-                                    message.push(bit);
-                                }
-                            }
-                            message.push(bit);
-                        }
+                        // The consumer of the data is responsible for seperating the messages in a binary file.
+                        // FIXME: we should probably really split these up into individual messages....
+                        data.push(contents.into());
+
                         Ok(())
                     }
                 }
@@ -669,7 +659,32 @@ pub fn process_file_as_adsb_raw(contents: &[u8]) {
 }
 
 /// Assistance function to compare error message strings between Library result and serde `Value` result.
-pub fn compare_errors(
+pub fn compare_deku_errors(
+    error_1: Option<DeserializationError>,
+    error_2: Result<((&[u8], usize), AdsbRawMessage), DeserializationError>,
+    line: &str,
+) {
+    match (error_1, error_2) {
+        (None, Ok(_)) => {}
+        (Some(library_error), Ok(value_data)) => {
+            assert!(false, "Library {}, Value {:?}", &library_error, &value_data)
+        }
+        (Some(library_error), Err(value_error)) => assert_eq!(
+            library_error.to_string(),
+            value_error.to_string(),
+            "Errors processing {} do not match between library {} and serde Value {}",
+            line,
+            library_error,
+            value_error.to_string()
+        ),
+        (None, Err(value_error)) => {
+            assert!(false, "Library passed, but Value is {:?}", &value_error)
+        }
+    }
+}
+
+/// Assistance function to compare error message strings between Library result and serde `Value` result.
+pub fn compare_serde_errors(
     error_1: Option<DeserializationError>,
     error_2: Result<Value, DeserializationError>,
     line: &str,

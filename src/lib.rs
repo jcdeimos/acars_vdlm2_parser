@@ -5,7 +5,6 @@ extern crate log;
 
 use deku::prelude::*;
 use error_handling::deserialization_error::DeserializationError;
-use helpers::encode_adsb_raw_input;
 use message_types::acars::AcarsMessage;
 use message_types::adsb_json::AdsbJsonMessage;
 use message_types::adsb_raw::AdsbRawMessage;

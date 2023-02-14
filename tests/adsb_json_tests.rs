@@ -1,11 +1,10 @@
 mod common;
 
-use acars_vdlm2_parser::error_handling::deserialization_error::DeserializationError;
 use acars_vdlm2_parser::message_types::adsb_json::{AdsbJsonMessage, NewAdsbJsonMessage};
 use std::error::Error;
 
 use crate::common::{
-    combine_files_of_message_type, compare_errors, load_files_of_message_type,
+    combine_files_of_message_type, compare_serde_errors, load_files_of_message_type,
     process_file_as_adsb_json, MessageType,
 };
 
@@ -37,9 +36,9 @@ fn test_adsb_json_parsing() -> Result<(), Box<dyn Error>> {
                 assert!(message.to_bytes().as_ref().err().is_none());
             }
             for line in failed_decodes {
-                compare_errors(
+                compare_serde_errors(
                     line.to_adsb().err(),
-                    serde_json::from_str(&line).map_err(|e| DeserializationError::SerdeError(e)),
+                    serde_json::from_str(&line).map_err(|e| e.into()),
                     &line,
                 );
             }

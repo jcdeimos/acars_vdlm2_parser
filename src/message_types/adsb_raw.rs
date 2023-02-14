@@ -1,6 +1,6 @@
 // With MASSIVE thanks to https://github.com/rsadsb/adsb_deku
 
-use crate::{DeserializationError, MessageResult};
+use crate::MessageResult;
 
 use core::{
     clone::Clone,
@@ -39,7 +39,7 @@ impl NewAdsbRawMessage for String {
         let bytes = hex::decode(&self)?;
         match AdsbRawMessage::from_bytes((&bytes, 0)) {
             Ok((_, v)) => Ok(v),
-            Err(e) => Err(DeserializationError::DekuError(e)),
+            Err(e) => Err(e.into()),
         }
     }
 }
@@ -53,7 +53,7 @@ impl NewAdsbRawMessage for str {
         let bytes = hex::decode(&self)?;
         match AdsbRawMessage::from_bytes((&bytes, 0)) {
             Ok((_, v)) => Ok(v),
-            Err(e) => Err(DeserializationError::DekuError(e)),
+            Err(e) => Err(e.into()),
         }
     }
 }
@@ -65,7 +65,7 @@ impl NewAdsbRawMessage for Vec<u8> {
     fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage> {
         match AdsbRawMessage::from_bytes((self, 0)) {
             Ok((_, v)) => Ok(v),
-            Err(e) => Err(DeserializationError::DekuError(e)),
+            Err(e) => Err(e.into()),
         }
     }
 }
@@ -77,7 +77,7 @@ impl NewAdsbRawMessage for [u8] {
     fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage> {
         match AdsbRawMessage::from_bytes((self, 0)) {
             Ok((_, v)) => Ok(v),
-            Err(e) => Err(DeserializationError::DekuError(e)),
+            Err(e) => Err(e.into()),
         }
     }
 }
@@ -1420,14 +1420,14 @@ impl AdsbRawMessage {
     pub fn to_string(&self) -> MessageResult<String> {
         match serde_json::to_string(self) {
             Ok(v) => Ok(v),
-            Err(e) => Err(DeserializationError::SerdeError(e)),
+            Err(e) => Err(e.into()),
         }
     }
 
     /// Converts `ADSBJsonMessage` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
         match serde_json::to_string(self) {
-            Err(to_string_error) => Err(DeserializationError::SerdeError(to_string_error)),
+            Err(to_string_error) => Err(to_string_error.into()),
             Ok(string) => Ok(format!("{}\n", string)),
         }
     }

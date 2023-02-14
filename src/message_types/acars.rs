@@ -1,4 +1,3 @@
-use crate::error_handling::deserialization_error::DeserializationError;
 use crate::{AppDetails, MessageResult};
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +17,7 @@ impl NewAcarsMessage for String {
     fn to_acars(&self) -> MessageResult<AcarsMessage> {
         match serde_json::from_str(self) {
             Ok(v) => Ok(v),
-            Err(e) => Err(DeserializationError::SerdeError(e)),
+            Err(e) => Err(e.into()),
         }
     }
 }
@@ -30,7 +29,7 @@ impl NewAcarsMessage for str {
     fn to_acars(&self) -> MessageResult<AcarsMessage> {
         match serde_json::from_str(self) {
             Ok(v) => Ok(v),
-            Err(e) => Err(DeserializationError::SerdeError(e)),
+            Err(e) => Err(e.into()),
         }
     }
 }
@@ -40,14 +39,14 @@ impl AcarsMessage {
     pub fn to_string(&self) -> MessageResult<String> {
         match serde_json::to_string(self) {
             Ok(v) => Ok(v),
-            Err(e) => Err(DeserializationError::SerdeError(e)),
+            Err(e) => Err(e.into()),
         }
     }
 
     /// Converts `AcarsMessage` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
         match serde_json::to_string(self) {
-            Err(to_string_error) => Err(DeserializationError::SerdeError(to_string_error)),
+            Err(to_string_error) => Err(to_string_error.into()),
             Ok(string) => Ok(format!("{}\n", string)),
         }
     }

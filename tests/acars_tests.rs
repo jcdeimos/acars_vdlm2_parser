@@ -1,10 +1,9 @@
 mod common;
 
 use crate::common::{
-    combine_files_of_message_type, compare_errors, load_files_of_message_type,
+    combine_files_of_message_type, compare_serde_errors, load_files_of_message_type,
     process_file_as_acars, MessageType,
 };
-use acars_vdlm2_parser::error_handling::deserialization_error::DeserializationError;
 use acars_vdlm2_parser::message_types::acars::{AcarsMessage, NewAcarsMessage};
 use std::error::Error;
 
@@ -35,9 +34,9 @@ fn test_acars_parsing() -> Result<(), Box<dyn Error>> {
                 assert!(message.to_bytes().as_ref().err().is_none());
             }
             for line in failed_decodes {
-                compare_errors(
+                compare_serde_errors(
                     line.to_acars().err(),
-                    serde_json::from_str(&line).map_err(|e| DeserializationError::SerdeError(e)),
+                    serde_json::from_str(&line).map_err(|e| e.into()),
                     &line,
                 );
             }

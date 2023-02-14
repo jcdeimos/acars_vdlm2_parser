@@ -1,6 +1,6 @@
 use crate::common::{
-    combine_files_of_message_type, compare_errors, test_enum_serialisation, MessageType,
-    SerialisationTarget,
+    combine_files_of_message_type, compare_deku_errors, compare_serde_errors,
+    test_enum_serialisation, MessageType, SerialisationTarget,
 };
 use acars_vdlm2_parser::error_handling::deserialization_error::DeserializationError;
 use acars_vdlm2_parser::{DecodeMessage, DecodedMessage};
@@ -45,9 +45,10 @@ fn test_determining_message() -> Result<(), Box<dyn Error>> {
                 test_enum_serialisation(&message, SerialisationTarget::Both);
             }
             let length = failed_decodes.len();
+            // FIXME: Need to handle deku errors...
             for line in failed_decodes {
                 println!("{}{}", line, length);
-                compare_errors(
+                compare_serde_errors(
                     line.decode_json().err(),
                     serde_json::from_str(&line).map_err(|e| DeserializationError::SerdeError(e)),
                     &line,
