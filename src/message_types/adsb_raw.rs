@@ -36,7 +36,7 @@ pub trait NewAdsbRawMessage {
 /// The expected input is a hexadecimal string.
 impl NewAdsbRawMessage for String {
     fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage> {
-        let bytes = hex::decode(&self)?;
+        let bytes = hex::decode(self)?;
         match AdsbRawMessage::from_bytes((&bytes, 0)) {
             Ok((_, v)) => Ok(v),
             Err(e) => Err(e.into()),
@@ -50,7 +50,7 @@ impl NewAdsbRawMessage for String {
 /// The expected input is a hexadecimal string.
 impl NewAdsbRawMessage for str {
     fn to_adsb_raw(&self) -> MessageResult<AdsbRawMessage> {
-        let bytes = hex::decode(&self)?;
+        let bytes = hex::decode(self)?;
         match AdsbRawMessage::from_bytes((&bytes, 0)) {
             Ok((_, v)) => Ok(v),
             Err(e) => Err(e.into()),

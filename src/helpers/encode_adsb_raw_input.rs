@@ -12,13 +12,12 @@ const ADSB_RAW_FRAME_LARGE: usize = 28;
 /// Does not consume the input
 /// Returns a vector of bytes, with each element of the array being a frame that can be passed in to the ADSB Raw parser
 
-pub fn format_adsb_raw_frames_from_bytes(bytes: &Vec<u8>) -> Vec<Vec<u8>> {
+pub fn format_adsb_raw_frames_from_bytes(bytes: &[u8]) -> Vec<Vec<u8>> {
     let mut formatted_frames: Vec<Vec<u8>> = Vec::new();
     let mut current_frame: Vec<u8> = Vec::new();
     let mut errors_found: Vec<DeserializationError> = Vec::new();
     let mut entry = 0;
 
-    // TODO: verify this loop does not skip the very last frame in the sequence
     for byte in bytes.iter() {
         if byte == &ADSB_RAW_END_SEQUENCE_INIT_CHARACTER && entry != 0 {
             match current_frame.len() {
@@ -62,12 +61,12 @@ pub fn format_adsb_raw_frames_from_bytes(bytes: &Vec<u8>) -> Vec<Vec<u8>> {
         } else if byte != &ADSB_RAW_END_SEQUENCE_FINISH_CHARACTER
             && byte != &ADSB_RAW_END_SEQUENCE_INIT_CHARACTER
         {
-            current_frame.push(byte.clone());
+            current_frame.push(*byte);
         }
     }
 
     // If there are any errors, print them out
-    if errors_found.len() > 0 {
+    if !errors_found.is_empty() {
         debug!("Errors found in ADSB Raw frame formatting:");
         for error in errors_found {
             debug!("{}", error);

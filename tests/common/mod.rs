@@ -507,6 +507,7 @@ pub fn append_lines(file: GlobResult, data: &mut Vec<TestFileType>) -> Result<()
                     Ok(_) => {
                         // The consumer of the data is responsible for seperating the messages in a binary file.
                         // FIXME: we should probably really split these up into individual messages....
+                        // But we need to know the actual format of the message to do that.
                         data.push(contents.into());
 
                         Ok(())
