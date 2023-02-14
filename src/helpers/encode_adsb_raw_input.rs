@@ -77,3 +77,46 @@ pub fn format_adsb_raw_frames_from_bytes(bytes: &Vec<u8>) -> Vec<Vec<u8>> {
 
     formatted_frames
 }
+
+#[test]
+fn test_adsb_raw_parsing_input() {
+    let mut input = vec![
+        0x2a, 0x35, 0x44, 0x41, 0x42, 0x45, 0x36, 0x35, 0x41, 0x32, 0x46, 0x42, 0x46, 0x41, 0x46,
+        0x3b, 0x0a, 0x2a, 0x38, 0x44, 0x41, 0x31, 0x41, 0x33, 0x43, 0x43, 0x39, 0x39, 0x30, 0x39,
+        0x42, 0x38, 0x31, 0x34, 0x46, 0x30, 0x30, 0x34, 0x31, 0x32, 0x37, 0x46, 0x31, 0x31, 0x30,
+        0x37, 0x3b, 0x0a,
+    ];
+
+    assert_eq!(
+        format_adsb_raw_frames_from_bytes(&input).len(),
+        2,
+        "There should be two frames in the input"
+    );
+    assert_eq!(
+        format_adsb_raw_frames_from_bytes(&input),
+        [
+            hex::decode("5DABE65A2FBFAF").unwrap(),
+            hex::decode("8DA1A3CC9909B814F004127F1107").unwrap()
+        ]
+    );
+
+    input.push(0x2a);
+    input.push(0x35);
+    input.push(0x34);
+    input.push(0x32);
+    input.push(0x34);
+    input.push(0x3b);
+    input.push(0x0a);
+    assert_eq!(
+        format_adsb_raw_frames_from_bytes(&input).len(),
+        2,
+        "There should be two frames in the input"
+    );
+    assert_eq!(
+        format_adsb_raw_frames_from_bytes(&input),
+        [
+            hex::decode("5DABE65A2FBFAF").unwrap(),
+            hex::decode("8DA1A3CC9909B814F004127F1107").unwrap()
+        ]
+    );
+}
