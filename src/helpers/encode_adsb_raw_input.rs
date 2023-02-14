@@ -1,7 +1,6 @@
 use crate::error_handling::adsb_raw_error::ADSBRawError;
 use crate::error_handling::deserialization_error::DeserializationError;
 use hex;
-
 const ADSB_RAW_START_CHARACTER: u8 = 0x2a; // The adsb raw end charater sequence is is a '0x3b0a', start is '0x2a'
 const ADSB_RAW_END_SEQUENCE_FINISH_CHARACTER: u8 = 0x3b;
 const ADSB_RAW_END_SEQUENCE_INIT_CHARACTER: u8 = 0x0a;
@@ -69,9 +68,9 @@ pub fn format_adsb_raw_frames_from_bytes(bytes: &Vec<u8>) -> Vec<Vec<u8>> {
 
     // If there are any errors, print them out
     if errors_found.len() > 0 {
-        println!("Errors found in ADSB Raw frame formatting:");
+        debug!("Errors found in ADSB Raw frame formatting:");
         for error in errors_found {
-            println!("{}", error);
+            debug!("{}", error);
         }
     }
 
