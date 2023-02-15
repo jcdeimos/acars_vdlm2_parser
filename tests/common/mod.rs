@@ -487,14 +487,11 @@ pub fn append_lines(file: GlobResult, data: &mut Vec<TestFileType>) -> Result<()
             };
 
             if extension != "bin" {
-                match BufReader::new(File::open(file_path.as_path())?)
-                    .lines()
-                    .collect::<Result<String, _>>()
-                {
+                match read_test_file(file_path.as_path()) {
                     Err(read_error) => Err(read_error.into()),
                     Ok(contents) => {
-                        for line in contents.lines() {
-                            data.push(line.to_string().into());
+                        for line in contents {
+                            data.push(line.into());
                         }
                         Ok(())
                     }
