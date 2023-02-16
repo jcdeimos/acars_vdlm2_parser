@@ -745,7 +745,10 @@ pub fn test_enum_serialisation(
     }
 }
 
-pub fn test_value_serialisation(message: &Value, serialisation_target: SerialisationTarget) {
+pub fn test_value_serialisation(
+    message: &DecodedMessage,
+    serialisation_target: SerialisationTarget,
+) {
     match serialisation_target {
         SerialisationTarget::String => {
             assert!(

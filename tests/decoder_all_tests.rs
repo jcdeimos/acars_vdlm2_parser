@@ -31,7 +31,7 @@ fn test_determining_message() -> Result<(), Box<dyn Error>> {
                 match entry.clone() {
                     common::TestFileType::String(line_as_string) => {
                         match line_as_string.decode_json() {
-                            Err(e) => failed_decodes.push(entry.clone()),
+                            Err(_) => failed_decodes.push(entry.clone()),
                             Ok(json_message) => successfully_decoded_items.push(json_message),
                         }
                     }

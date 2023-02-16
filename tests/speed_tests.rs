@@ -5,6 +5,7 @@ use crate::common::{
     ContentDuplicator, MessageType, RunDurations, SerialisationTarget, SpeedTestComparisons,
     SpeedTestType, Stopwatch, StopwatchType, TestFileType,
 };
+use acars_vdlm2_parser::helpers::encode_adsb_raw_input::format_adsb_raw_frames_from_bytes;
 use acars_vdlm2_parser::{DecodeMessage, DecodedMessage};
 use byte_unit::Byte;
 use chrono::Utc;
@@ -12,7 +13,6 @@ use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
 use rand::thread_rng;
 use rayon::prelude::*;
-use serde_json::Value;
 use std::error::Error;
 use std::mem::size_of_val;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -102,30 +102,27 @@ impl SpeedTest for i64 {
                 let mut total_run_stopwatch: Stopwatch = Stopwatch::start(StopwatchType::TotalRun);
                 let mut deserialisation_run_stopwatch: Stopwatch =
                     Stopwatch::start(StopwatchType::LargeQueueDeser);
-                test_message_queue.par_iter().for_each(|entry| {
-                    match entry {
-                        common::TestFileType::String(line_as_string) => {
-                            match line_as_string.decode_json() {
-                                Err(_) => {}
-                                Ok(json_message) => successfully_decoded_items
+                test_message_queue.par_iter().for_each(|entry| match entry {
+                    common::TestFileType::String(line_as_string) => {
+                        match line_as_string.decode_json() {
+                            Err(_) => {}
+                            Ok(json_message) => successfully_decoded_items
+                                .lock()
+                                .unwrap()
+                                .push(json_message),
+                        }
+                    }
+                    common::TestFileType::U8(line_as_u8) => {
+                        let messages = format_adsb_raw_frames_from_bytes(&line_as_u8);
+                        for message in messages {
+                            if let Ok(decoded_message) = message.decode_adsb_raw() {
+                                successfully_decoded_items
                                     .lock()
                                     .unwrap()
-                                    .push(json_message),
+                                    .push(decoded_message);
                             }
                         }
-                        common::TestFileType::U8(line_as_u8) => match line_as_u8.decode_json() {
-                            Err(_) => {}
-                            Ok(bit_message) => {
-                                successfully_decoded_items.lock().unwrap().push(bit_message)
-                            }
-                        },
                     }
-                    // if let Ok(decoded_message) = entry.decode_message() {
-                    //     successfully_decoded_items
-                    //         .lock()
-                    //         .unwrap()
-                    //         .push(decoded_message);
-                    // }
                 });
                 deserialisation_run_stopwatch.stop();
                 let mut successfully_decoded_items_lock: MutexGuard<Vec<DecodedMessage>> =
@@ -184,7 +181,7 @@ impl SpeedTest for i64 {
                     queue_memory_size.get_appropriate_unit(false)
                 );
                 run_durations.run_processed_items = test_message_queue.len();
-                let successfully_decoded_items: Arc<Mutex<Vec<Value>>> =
+                let successfully_decoded_items: Arc<Mutex<Vec<DecodedMessage>>> =
                     Arc::new(Mutex::new(Vec::new()));
                 println!("{} => Shuffling data order", Utc::now());
                 test_message_queue.shuffle(&mut rng);
@@ -194,28 +191,28 @@ impl SpeedTest for i64 {
                     Stopwatch::start(StopwatchType::LargeQueueDeser);
                 test_message_queue.par_iter().for_each(|entry| match entry {
                     TestFileType::String(line_as_string) => {
-                        if let Ok(decoded_message) = serde_json::from_str::<Value>(&line_as_string)
-                        {
+                        if let Ok(decoded_message) = line_as_string.decode_json() {
                             successfully_decoded_items
                                 .lock()
                                 .unwrap()
-                                .push(decoded_message);
+                                .push(decoded_message.into());
                         }
                     }
                     TestFileType::U8(line_as_bytes) => {
                         // FIXME: Re-enable this once the Beast message is fixed
-                        // if let Ok((_, decoded_message)) =
-                        //     AdsbRawMessage::from_bytes((&line_as_bytes, 0))
-                        // {
-                        //     successfully_decoded_items
-                        //         .lock()
-                        //         .unwrap()
-                        //         .push(decoded_message);
-                        // }
+                        let raw_messages = format_adsb_raw_frames_from_bytes(&line_as_bytes);
+                        for message in raw_messages {
+                            if let Ok(decoded_message) = message.decode_adsb_raw() {
+                                successfully_decoded_items
+                                    .lock()
+                                    .unwrap()
+                                    .push(decoded_message.into());
+                            }
+                        }
                     }
                 });
                 deserialisation_run_stopwatch.stop();
-                let mut successfully_decoded_items_lock: MutexGuard<Vec<Value>> =
+                let mut successfully_decoded_items_lock: MutexGuard<Vec<DecodedMessage>> =
                     successfully_decoded_items.lock().unwrap();
                 run_durations.update_run_durations(&deserialisation_run_stopwatch);
                 successfully_decoded_items_lock.shuffle(&mut rng);
