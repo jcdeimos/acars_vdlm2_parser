@@ -199,7 +199,6 @@ impl SpeedTest for i64 {
                         }
                     }
                     TestFileType::U8(line_as_bytes) => {
-                        // FIXME: Re-enable this once the Beast message is fixed
                         let raw_messages = format_adsb_raw_frames_from_bytes(&line_as_bytes);
                         for message in raw_messages {
                             if let Ok(decoded_message) = message.decode_adsb_raw() {
