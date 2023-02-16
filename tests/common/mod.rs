@@ -395,12 +395,13 @@ impl AppendData for Vec<TestFile> {
                     if extension != "bin" {
                         match BufReader::new(file_read)
                             .lines()
-                            .collect::<Result<String, _>>()
+                            .collect::<Result<Vec<String>, _>>()
                         {
                             Err(read_error) => Err(read_error.into()),
                             Ok(contents) => match target_file.file_name() {
                                 None => Err("Could not get file name".into()),
                                 Some(file_name) => {
+                                    println!("{}", contents.len());
                                     let test_file: TestFile = TestFile {
                                         name: format!("{:?}", file_name),
                                         contents: contents.into(),

@@ -56,7 +56,10 @@ fn show_vdlm2_ingest() -> Result<(), Box<dyn Error>> {
         Ok(vdlm2_files) => {
             for file in vdlm2_files {
                 println!("Testing the contents from file: {}", file.name);
-                process_file_as_vdlm2(&file.contents.into_iter().collect::<Vec<String>>());
+                match file.contents {
+                    common::FileTypes::String(vdlm2_file) => process_file_as_vdlm2(&vdlm2_file),
+                    common::FileTypes::U8(_) => {}
+                }
             }
             Ok(())
         }

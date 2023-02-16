@@ -58,7 +58,12 @@ fn show_adsb_json_injest() -> Result<(), Box<dyn Error>> {
         Ok(adsb_json_files) => {
             for file in adsb_json_files {
                 println!("Testing the contents from file: {}", file.name);
-                process_file_as_adsb_json(&file.contents.into_iter().collect::<Vec<String>>());
+                match file.contents {
+                    common::FileTypes::String(adsb_json_file) => {
+                        process_file_as_adsb_json(&adsb_json_file)
+                    }
+                    common::FileTypes::U8(_) => {}
+                }
             }
             Ok(())
         }

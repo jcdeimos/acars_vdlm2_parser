@@ -56,7 +56,10 @@ fn show_acars_ingest() -> Result<(), Box<dyn Error>> {
         Ok(acars_files) => {
             for file in acars_files {
                 println!("Testing the contents from file: {}", file.name);
-                process_file_as_acars(&file.contents.into_iter().collect::<Vec<String>>());
+                match file.contents {
+                    common::FileTypes::String(acars_file) => process_file_as_acars(&acars_file),
+                    common::FileTypes::U8(_) => {}
+                }
             }
             Ok(())
         }
