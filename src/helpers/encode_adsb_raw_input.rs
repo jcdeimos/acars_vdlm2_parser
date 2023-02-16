@@ -6,6 +6,7 @@ const ADSB_RAW_END_SEQUENCE_FINISH_CHARACTER: u8 = 0x3b;
 const ADSB_RAW_END_SEQUENCE_INIT_CHARACTER: u8 = 0x0a;
 const ADSB_RAW_FRAME_SMALL: usize = 14;
 const ADSB_RAW_FRAME_LARGE: usize = 28;
+const ADSB_RAW_MODEAC_FRAME: usize = 4;
 
 /// Helper function to format ADSB Raw frames from bytes.
 /// Expected input is a Vec<Vec<u8>>of the raw frame(s), including the control characters to start and end the frame.
@@ -21,6 +22,10 @@ pub fn format_adsb_raw_frames_from_bytes(bytes: &[u8]) -> Vec<Vec<u8>> {
     for byte in bytes.iter() {
         if byte == &ADSB_RAW_END_SEQUENCE_INIT_CHARACTER && entry != 0 {
             match current_frame.len() {
+                ADSB_RAW_MODEAC_FRAME => {
+                    // this is a valid frame size, but it's NOT one we want to decode
+                    debug!("Detected a MODEAC frame, skipping");
+                }
                 // The frame size is valid
                 ADSB_RAW_FRAME_SMALL | ADSB_RAW_FRAME_LARGE => {
                     // FIXME: there is some kind of stupid read-in issue with the data where I need to do this round-robin
