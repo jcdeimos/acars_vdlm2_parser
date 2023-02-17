@@ -1,0 +1,8 @@
+[package]
+name = "library_test"
+description = "Utility for connecting to a VDLM/ACARS or ADSB server to decode data"
+version = "0.1.0"
+
+[dependencies]
+acars_vdlm2_parser = { path = "../../acars_vdlm2_parser" }
+hex = "0.4.2"

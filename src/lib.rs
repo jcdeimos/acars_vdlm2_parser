@@ -28,6 +28,7 @@ pub mod helpers {
     pub mod encode_adsb_raw_input;
 }
 
+// TODO: Handle a generic "Decode any type"
 #[derive(Debug, Clone, Copy)]
 pub enum ExpectedMessageType {
     Json,
