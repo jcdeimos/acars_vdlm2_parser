@@ -86,10 +86,6 @@ impl AcarsMessage {
         if let Some(app_details) = self.app.as_mut() {
             app_details.remove_proxy();
         }
-        // match self.app.as_mut() {
-        //     None => warn!("Attempted to remove proxy details but there isn't an app block, nothing to do"),
-        //     Some(app_details) => app_details.remove_proxy()
-        // }
     }
 
     /// Sets proxy details to the provided details and sets `proxied` to true.

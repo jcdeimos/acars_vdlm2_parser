@@ -1,25 +1,15 @@
 // With MASSIVE thanks to https://github.com/rsadsb/adsb_deku
 
-use crate::MessageResult;
-
-use core::{
-    clone::Clone,
-    cmp::PartialEq,
-    convert::From,
-    f64, fmt,
-    fmt::Write,
-    fmt::{Debug, Error},
-    marker::Copy,
-    option::{Option::None, Option::Some},
-    prelude::rust_2021::derive,
-    result,
-    result::Result::Ok,
-    stringify, write, writeln,
-};
+use std::{fmt, num};
+use std::fmt::{Formatter, Write, Error};
+use std::str::FromStr;
 use deku::bitvec::{BitSlice, Msb0};
 use deku::prelude::*;
 use hex;
 use serde::{Deserialize, Serialize};
+use crate::MessageResult;
+
+const CHAR_LOOKUP: &[u8; 64] = b"#ABCDEFGHIJKLMNOPQRSTUVWXYZ##### ###############0123456789######";
 
 /// Trait for performing a decode if you wish to apply it to types other than the defaults done in this library.
 ///
@@ -83,8 +73,7 @@ impl NewAdsbRawMessage for [u8] {
 }
 
 /// Downlink ADS-B Packet
-#[derive(Debug, PartialEq, DekuRead, Clone, Serialize, Deserialize)]
-
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, PartialEq)]
 pub struct AdsbRawMessage {
     /// Starting with 5 bit identifier, decode packet
     pub df: DF,
@@ -98,7 +87,7 @@ impl AdsbRawMessage {
     fn read_crc<'b>(
         df: &DF,
         rest: &'b BitSlice<u8, Msb0>,
-    ) -> result::Result<(&'b BitSlice<u8, Msb0>, u32), DekuError> {
+    ) -> Result<(&'b BitSlice<u8, Msb0>, u32), DekuError> {
         const MODES_LONG_MSG_BYTES: usize = 14;
         const MODES_SHORT_MSG_BYTES: usize = 7;
 
@@ -122,7 +111,7 @@ impl AdsbRawMessage {
 /// Downlink Format (3.1.2.3.2.1.2)
 ///
 /// Starting with 5 bits, decode the rest of the message as the correct data packets
-#[derive(Debug, PartialEq, DekuRead, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, PartialEq)]
 #[deku(type = "u8", bits = "5")]
 pub enum DF {
     /// 17: Extended Squitter, Downlink Format 17 (3.1.2.8.6)
@@ -304,7 +293,7 @@ pub enum DF {
     },
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, DekuRead, PartialEq)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Adsb {
     // Transponder Capability
@@ -319,23 +308,23 @@ pub struct Adsb {
 
 /// ICAO Address; Mode S transponder code
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
+    Deserialize,
+    Serialize,
     DekuRead,
     DekuWrite,
-    Hash,
-    Copy,
+    Debug,
     Clone,
+    Copy,
+    Eq,
+    PartialEq,
     Ord,
-    Serialize,
-    Deserialize,
+    PartialOrd,
+    Hash,
 )]
 pub struct ICAO(pub [u8; 3]);
 
-impl core::fmt::Display for ICAO {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for ICAO {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{:02x}", self.0[0])?;
         write!(f, "{:02x}", self.0[1])?;
         write!(f, "{:02x}", self.0[2])?;
@@ -343,13 +332,13 @@ impl core::fmt::Display for ICAO {
     }
 }
 
-impl core::str::FromStr for ICAO {
-    type Err = core::num::ParseIntError;
+impl FromStr for ICAO {
+    type Err = num::ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let num = u32::from_str_radix(s, 16)?;
+        let num: u32 = u32::from_str_radix(s, 16)?;
         let bytes = num.to_be_bytes();
-        let num = [bytes[1], bytes[2], bytes[3]];
+        let num: [u8;3] = [bytes[1], bytes[2], bytes[3]];
         Ok(Self(num))
     }
 }
@@ -357,7 +346,7 @@ impl core::str::FromStr for ICAO {
 /// ADS-B Message, 5 first bits are known as Type Code (TC)
 ///
 /// reference: ICAO 9871 (A.2.3.1)
-#[derive(Debug, PartialEq, DekuRead, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, PartialEq)]
 #[deku(type = "u8", bits = "5")]
 pub enum ME {
     #[deku(id_pat = "9..=18")]
@@ -408,12 +397,12 @@ impl ME {
         address_type: &str,
         capability: Capability,
         is_transponder: bool,
-    ) -> result::Result<String, Error> {
-        let transponder = match is_transponder {
+    ) -> Result<String, Error> {
+        let transponder: &str = match is_transponder {
             true => " ",
             false => " (Non-Transponder) ",
         };
-        let mut f = String::new();
+        let mut f: String = String::new();
         match self {
             ME::NoPosition(_) => {
                 writeln!(f, " Extended Squitter{transponder}No position information")?;
@@ -609,7 +598,7 @@ impl ME {
 }
 
 /// [`ME::AirborneVelocity`] && [`AirborneVelocitySubType::GroundSpeedDecoding`]
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct GroundSpeedDecoding {
     pub ew_sign: Sign,
     #[deku(endian = "big", bits = "10")]
@@ -620,7 +609,7 @@ pub struct GroundSpeedDecoding {
 }
 
 /// [`ME::AirborneVelocity`] && [`AirborneVelocitySubType::AirspeedDecoding`]
-#[derive(Debug, PartialEq, Eq, DekuRead, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct AirspeedDecoding {
     #[deku(bits = "1")]
     pub status_heading: u8,
@@ -631,13 +620,13 @@ pub struct AirspeedDecoding {
     #[deku(
         endian = "big",
         bits = "10",
-        map = "|airspeed: u16| -> result::Result<_, DekuError> {Ok(if airspeed > 0 { airspeed - 1 } else { 0 })}"
+        map = "|airspeed: u16| -> Result<_, DekuError> {Ok(if airspeed > 0 { airspeed - 1 } else { 0 })}"
     )]
     pub airspeed: u16,
 }
 
 /// Aircraft Operational Status Subtype
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "3")]
 pub enum OperationStatus {
     #[deku(id = "0")]
@@ -653,7 +642,7 @@ pub enum OperationStatus {
 /// [`ME::AircraftOperationStatus`] && [`OperationStatus`] == 0
 ///
 /// Version 2 support only
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct OperationStatusAirborne {
     /// CC (16 bits)
     pub capability_class: CapabilityClassAirborne,
@@ -688,7 +677,7 @@ pub struct OperationStatusAirborne {
 }
 
 impl fmt::Display for OperationStatusAirborne {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "   Version:            {}", self.version_number)?;
         writeln!(f, "   Capability classes:{}", self.capability_class)?;
         writeln!(f, "   Operational modes: {}", self.operational_mode)?;
@@ -723,7 +712,7 @@ impl fmt::Display for OperationStatusAirborne {
 }
 
 /// [`ME::AircraftOperationStatus`]
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct CapabilityClassAirborne {
     #[deku(bits = "2", assert_eq = "0")]
     pub reserved0: u8,
@@ -751,20 +740,20 @@ pub struct CapabilityClassAirborne {
 }
 
 impl fmt::Display for CapabilityClassAirborne {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.acas == 1 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if self.acas.eq(&1) {
             write!(f, " ACAS")?;
         }
-        if self.cdti == 1 {
+        if self.cdti.eq(&1) {
             write!(f, " CDTI")?;
         }
-        if self.arv == 1 {
+        if self.arv.eq(&1) {
             write!(f, " ARV")?;
         }
-        if self.ts == 1 {
+        if self.ts.eq(&1) {
             write!(f, " TS")?;
         }
-        if self.tc == 1 {
+        if self.tc.eq(&1) {
             write!(f, " TC")?;
         }
         Ok(())
@@ -774,7 +763,7 @@ impl fmt::Display for CapabilityClassAirborne {
 /// [`ME::AircraftOperationStatus`] && [`OperationStatus`] == 1
 ///
 /// Version 2 support only
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct OperationStatusSurface {
     /// CC (14 bits)
     pub capability_class: CapabilityClassSurface,
@@ -816,7 +805,7 @@ pub struct OperationStatusSurface {
 }
 
 impl fmt::Display for OperationStatusSurface {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "  Version:            {}", self.version_number)?;
         writeln!(f, "   NIC-A:              {}", self.nic_supplement_a)?;
         write!(f, "{}", self.capability_class)?;
@@ -853,7 +842,7 @@ impl fmt::Display for OperationStatusSurface {
 }
 
 /// [`ME::AircraftOperationStatus`]
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct CapabilityClassSurface {
     /// 0, 0 in current version, reserved as id for later versions
     #[deku(bits = "2", assert_eq = "0")]
@@ -886,7 +875,7 @@ pub struct CapabilityClassSurface {
 }
 
 impl fmt::Display for CapabilityClassSurface {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "   NIC-C:              {}", self.nic_supplement_c)?;
         writeln!(f, "   NACv:               {}", self.nac_v)?;
         Ok(())
@@ -894,7 +883,7 @@ impl fmt::Display for CapabilityClassSurface {
 }
 
 /// `OperationMode` field not including the last 8 bits that are different for Surface/Airborne
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct OperationalMode {
     /// (0, 0) in Version 2, reserved for other values
     #[deku(bits = "2", assert_eq = "0")]
@@ -917,7 +906,7 @@ pub struct OperationalMode {
 }
 
 impl fmt::Display for OperationalMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if self.tcas_ra_active {
             write!(f, " TCAS")?;
         }
@@ -940,7 +929,7 @@ impl fmt::Display for OperationalMode {
 /// ADS-B Defined from different ICAO documents
 ///
 /// reference: ICAO 9871 (5.3.2.3)
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "3")]
 pub enum ADSBVersion {
     #[deku(id = "0")]
@@ -952,7 +941,7 @@ pub enum ADSBVersion {
 }
 
 impl fmt::Display for ADSBVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.deku_id().unwrap())
     }
 }
@@ -960,7 +949,7 @@ impl fmt::Display for ADSBVersion {
 /// Control Field (B.3) for [`crate::DF::TisB`]
 ///
 /// reference: ICAO 9871
-#[derive(Debug, PartialEq, DekuRead, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, PartialEq)]
 pub struct ControlField {
     t: ControlFieldType,
     /// AA: Address, Announced
@@ -970,7 +959,7 @@ pub struct ControlField {
 }
 
 impl fmt::Display for ControlField {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -984,7 +973,7 @@ impl fmt::Display for ControlField {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, DekuRead, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Eq, PartialEq)]
 #[deku(type = "u8", bits = "3")]
 #[allow(non_camel_case_types)]
 pub enum ControlFieldType {
@@ -1024,19 +1013,18 @@ pub enum ControlFieldType {
 }
 
 impl fmt::Display for ControlFieldType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s_type = match self {
-            Self::ADSB_ES_NT | Self::ADSB_ES_NT_ALT => "(ADS-B)",
-            Self::TISB_COARSE | Self::TISB_ADSB_RELAY | Self::TISB_FINE => "(TIS-B)",
-            Self::TISB_MANAGE | Self::TISB_ADSB => "(ADS-R)",
-            Self::Reserved => "(unknown addressing scheme)",
-        };
-        write!(f, "{s_type}")
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ADSB_ES_NT | Self::ADSB_ES_NT_ALT => write!(f, "(ADS-B)"),
+            Self::TISB_COARSE | Self::TISB_ADSB_RELAY | Self::TISB_FINE => write!(f, "(TIS-B)"),
+            Self::TISB_MANAGE | Self::TISB_ADSB => write!(f, "(ADS-R)"),
+            Self::Reserved => write!(f, "(unknown addressing scheme)"),
+        }
     }
 }
 
 /// Table: A-2-97
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct AircraftStatus {
     pub sub_type: AircraftStatusType,
     pub emergency_state: EmergencyState,
@@ -1048,7 +1036,7 @@ pub struct AircraftStatus {
     pub squawk: u32,
 }
 
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "3")]
 pub enum AircraftStatusType {
     #[deku(id = "0")]
@@ -1061,7 +1049,7 @@ pub enum AircraftStatusType {
     Reserved,
 }
 
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "3")]
 pub enum EmergencyState {
     None = 0,
@@ -1075,23 +1063,21 @@ pub enum EmergencyState {
 }
 
 impl fmt::Display for EmergencyState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Self::None => "no emergency",
-            Self::General => "general",
-            Self::Lifeguard => "lifeguard",
-            Self::MinimumFuel => "minimum fuel",
-            Self::NoCommunication => "no communication",
-            Self::UnlawfulInterference => "unflawful interference",
-            Self::DownedAircraft => "downed aircraft",
-            Self::Reserved2 => "reserved2",
-        };
-        write!(f, "{s}")?;
-        Ok(())
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::None => write!(f, "no emergency"),
+            Self::General => write!(f, "general"),
+            Self::Lifeguard => write!(f, "lifeguard"),
+            Self::MinimumFuel => write!(f, "minimum fuel"),
+            Self::NoCommunication => write!(f, "no communication"),
+            Self::UnlawfulInterference => write!(f, "unlawful interference"),
+            Self::DownedAircraft => write!(f, "downed aircraft"),
+            Self::Reserved2 => write!(f, "reserved2"),
+        }
     }
 }
 
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct OperationCodeSurface {
     #[deku(bits = "1")]
     pub poe: u8,
@@ -1104,7 +1090,7 @@ pub struct OperationCodeSurface {
     pub lw: u8,
 }
 
-#[derive(Debug, PartialEq, Eq, DekuRead, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Eq, PartialEq)]
 pub struct Identification {
     pub tc: TypeCoding,
 
@@ -1116,7 +1102,7 @@ pub struct Identification {
     pub cn: String,
 }
 
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "5")]
 pub enum TypeCoding {
     D = 1,
@@ -1126,22 +1112,18 @@ pub enum TypeCoding {
 }
 
 impl fmt::Display for TypeCoding {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::D => "D",
-                Self::C => "C",
-                Self::B => "B",
-                Self::A => "A",
-            }
-        )
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::D => write!(f, "D"),
+            Self::C => write!(f, "C"),
+            Self::B => write!(f, "B"),
+            Self::A => write!(f, "A"),
+        }
     }
 }
 
 /// Target State and Status (§2.2.3.2.7.1)
-#[derive(Copy, Clone, Debug, PartialEq, DekuRead, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, PartialEq)]
 pub struct TargetStateAndStatusInformation {
     // TODO Support Target State and Status defined in DO-260A, ADS-B Version=1
     // TODO Support reserved 2..=3
@@ -1195,7 +1177,7 @@ pub struct TargetStateAndStatusInformation {
 }
 
 /// [`ME::AirborneVelocity`]
-#[derive(Debug, PartialEq, Eq, DekuRead, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Eq, PartialEq)]
 pub struct AirborneVelocity {
     #[deku(bits = "3")]
     pub st: u8,
@@ -1221,28 +1203,28 @@ impl AirborneVelocity {
     /// Return effective (`heading`, `ground_speed`, `vertical_rate`) for groundspeed
     #[must_use]
     pub fn calculate(&self) -> Option<(f32, f64, i16)> {
-        if let AirborneVelocitySubType::GroundSpeedDecoding(ground_speed) = &self.sub_type {
-            let v_ew = f64::from((ground_speed.ew_vel as i16 - 1) * ground_speed.ew_sign.value());
-            let v_ns = f64::from((ground_speed.ns_vel as i16 - 1) * ground_speed.ns_sign.value());
-            let h = libm::atan2(v_ew, v_ns) * (360.0 / (2.0 * f64::consts::PI));
-            let heading = if h < 0.0 { h + 360.0 } else { h };
-
-            let vrate = self
-                .vrate_value
-                .checked_sub(1)
-                .and_then(|v| v.checked_mul(64))
-                .map(|v| (v as i16) * self.vrate_sign.value());
-
-            if let Some(vrate) = vrate {
-                return Some((heading as f32, libm::hypot(v_ew, v_ns), vrate));
-            }
-        }
-        None
+        let AirborneVelocitySubType::GroundSpeedDecoding(ground_speed) = self.sub_type else {
+            return None;
+        };
+        let v_ew: f64 = f64::from((ground_speed.ew_vel as i16 - 1) * ground_speed.ew_sign.value());
+        let v_ns: f64 = f64::from((ground_speed.ns_vel as i16 - 1) * ground_speed.ns_sign.value());
+        let h: f64 = libm::atan2(v_ew, v_ns) * (360.0 / (2.0 * std::f64::consts::PI));
+        let heading: f64 = if h < 0.0 { h + 360.0 } else { h };
+    
+        let vrate: Option<i16> = self
+            .vrate_value
+            .checked_sub(1)
+            .and_then(| v: u16 | v.checked_mul(64))
+            .map(| v: u16 | (v as i16) * self.vrate_sign.value());
+        let Some(vrate) = vrate else {
+            return None;
+        };
+        Some((heading as f32, libm::hypot(v_ew, v_ns), vrate))
     }
 }
 
 /// Airborne Velocity Message “Subtype” Code Field Encoding
-#[derive(Debug, PartialEq, Eq, DekuRead, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Eq, PartialEq)]
 #[deku(ctx = "st: u8", id = "st")]
 pub enum AirborneVelocitySubType {
     #[deku(id = "0")]
@@ -1258,14 +1240,14 @@ pub enum AirborneVelocitySubType {
     Reserved1(#[deku(bits = "22")] u32),
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "3")]
 pub enum AirborneVelocityType {
     Subsonic = 1,
     Supersonic = 3,
 }
 
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(ctx = "t: AirborneVelocityType")]
 pub struct AirborneVelocitySubFields {
     pub dew: DirectionEW,
@@ -1280,7 +1262,7 @@ impl AirborneVelocitySubFields {
     fn read_v(
         rest: &BitSlice<u8, Msb0>,
         t: AirborneVelocityType,
-    ) -> result::Result<(&BitSlice<u8, Msb0>, u16), DekuError> {
+    ) -> Result<(&BitSlice<u8, Msb0>, u16), DekuError> {
         match t {
             AirborneVelocityType::Subsonic => {
                 u16::read(rest, (deku::ctx::Endian::Big, deku::ctx::BitSize(10)))
@@ -1294,42 +1276,42 @@ impl AirborneVelocitySubFields {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "1")]
 pub enum DirectionEW {
     WestToEast = 0,
     EastToWest = 1,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "1")]
 pub enum DirectionNS {
     SouthToNorth = 0,
     NorthToSouth = 1,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "1")]
 pub enum SourceBitVerticalRate {
     GNSS = 0,
     Barometer = 1,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "1")]
 pub enum SignBitVerticalRate {
     Up = 0,
     Down = 1,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "1")]
 pub enum SignBitGNSSBaroAltitudesDiff {
     Above = 0,
     Below = 1,
 }
 
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "1")]
 pub enum VerticalRateSource {
     BarometricPressureAltitude = 0,
@@ -1337,19 +1319,15 @@ pub enum VerticalRateSource {
 }
 
 impl fmt::Display for VerticalRateSource {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::BarometricPressureAltitude => "barometric",
-                Self::GeometricAltitude => "GNSS",
-            }
-        )
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            VerticalRateSource::BarometricPressureAltitude => write!(f, "barometric"),
+            VerticalRateSource::GeometricAltitude => write!(f, "GNSS"),
+        }
     }
 }
 
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct SurfacePosition {
     #[deku(bits = "7")]
     pub mov: u8,
@@ -1365,7 +1343,7 @@ pub struct SurfacePosition {
     pub lon_cpr: u32,
 }
 
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "1")]
 pub enum StatusForGroundTrack {
     Invalid = 0,
@@ -1373,11 +1351,12 @@ pub enum StatusForGroundTrack {
 }
 
 /// Transponder level and additional information (3.1.2.5.2.2.1)
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, DekuRead, DekuWrite)]
+#[derive(Serialize, Deserialize, DekuRead, DekuWrite, Debug, Clone, Copy, Eq, PartialEq, Default)]
 #[allow(non_camel_case_types)]
 #[deku(type = "u8", bits = "3")]
 pub enum Capability {
     /// Level 1 transponder (surveillance only), and either airborne or on the ground
+    #[default]
     AG_UNCERTAIN = 0x00,
     #[deku(id_pat = "0x01..=0x03")]
     Reserved,
@@ -1393,25 +1372,15 @@ pub enum Capability {
 }
 
 impl fmt::Display for Capability {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::AG_UNCERTAIN => "uncertain1",
-                Self::Reserved => "reserved",
-                Self::AG_GROUND => "ground",
-                Self::AG_AIRBORNE => "airborne",
-                Self::AG_UNCERTAIN2 => "uncertain2",
-                Self::AG_UNCERTAIN3 => "airborne?",
-            }
-        )
-    }
-}
-
-impl Default for Capability {
-    fn default() -> Self {
-        Capability::AG_UNCERTAIN
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Capability::AG_UNCERTAIN => write!(f, "uncertain1"),
+            Capability::Reserved => write!(f, "reserved"),
+            Capability::AG_GROUND => write!(f, "ground"),
+            Capability::AG_AIRBORNE => write!(f, "airborne"),
+            Capability::AG_UNCERTAIN2 => write!(f, "uncertain2"),
+            Capability::AG_UNCERTAIN3 => write!(f, "airborne?"),
+        }
     }
 }
 
@@ -1453,13 +1422,12 @@ impl AdsbRawMessage {
     }
 
     pub fn get_time(&self) -> Option<f64> {
-        // self.now.as_ref().copied()
         Some(0.0)
     }
 }
 
 /// Latitude, Longitude and Altitude information
-#[derive(Debug, PartialEq, Eq, DekuRead, Default, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct Altitude {
     #[deku(bits = "5")]
     pub tc: u8,
@@ -1480,10 +1448,10 @@ pub struct Altitude {
 }
 
 impl fmt::Display for Altitude {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let altitude = self.alt.map_or_else(
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let altitude: String = self.alt.map_or_else(
             || "None".to_string(),
-            |altitude| format!("{altitude} ft barometric"),
+            | altitude| format!("{altitude} ft barometric"),
         );
         writeln!(f, "  Altitude:      {altitude}")?;
         writeln!(f, "  CPR type:      Airborne")?;
@@ -1499,11 +1467,11 @@ impl Altitude {
     fn read(rest: &BitSlice<u8, Msb0>) -> Result<(&BitSlice<u8, Msb0>, Option<u16>), DekuError> {
         let (rest, num) = u32::read(rest, (deku::ctx::Endian::Big, deku::ctx::BitSize(12)))?;
 
-        let q = num & 0x10;
+        let q: u32 = num & 0x10;
 
         if q > 0 {
-            let n = ((num & 0x0fe0) >> 1) | (num & 0x000f);
-            let n = n * 25;
+            let n: u32 = ((num & 0x0fe0) >> 1) | (num & 0x000f);
+            let n: u32 = n * 25;
             if n > 1000 {
                 // TODO: maybe replace with Result->Option
                 Ok((rest, u16::try_from(n - 1000).ok()))
@@ -1511,7 +1479,7 @@ impl Altitude {
                 Ok((rest, None))
             }
         } else {
-            let mut n = ((num & 0x0fc0) << 1) | (num & 0x003f);
+            let mut n: u32 = ((num & 0x0fc0) << 1) | (num & 0x003f);
             n = decode_id13_field(n);
             if let Ok(n) = mode_a_to_mode_c(n) {
                 Ok((rest, u16::try_from(n * 100).ok()))
@@ -1523,19 +1491,14 @@ impl Altitude {
 }
 
 /// SPI Condition
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq, Default)]
 #[deku(type = "u8", bits = "2")]
 pub enum SurveillanceStatus {
+    #[default]
     NoCondition = 0,
     PermanentAlert = 1,
     TemporaryAlert = 2,
     SPICondition = 3,
-}
-
-impl Default for SurveillanceStatus {
-    fn default() -> Self {
-        Self::NoCondition
-    }
 }
 
 pub(crate) fn decode_id13_field(id13_field: u32) -> u32 {
@@ -1582,13 +1545,13 @@ pub(crate) fn decode_id13_field(id13_field: u32) -> u32 {
     hex_gillham
 }
 
-pub(crate) fn mode_a_to_mode_c(mode_a: u32) -> result::Result<u32, &'static str> {
+pub(crate) fn mode_a_to_mode_c(mode_a: u32) -> Result<u32, String> {
     let mut five_hundreds: u32 = 0;
     let mut one_hundreds: u32 = 0;
 
     // check zero bits are zero, D1 set is illegal; C1,,C4 cannot be Zero
     if (mode_a & 0xffff_8889) != 0 || (mode_a & 0x0000_00f0) == 0 {
-        return Err("Invalid altitude");
+        return Err("Invalid altitude".to_string());
     }
 
     if mode_a & 0x0010 != 0 {
@@ -1608,7 +1571,7 @@ pub(crate) fn mode_a_to_mode_c(mode_a: u32) -> result::Result<u32, &'static str>
 
     // Check for invalid codes, only 1 to 5 are valid
     if one_hundreds > 5 {
-        return Err("Invalid altitude");
+        return Err("Invalid altitude".to_string());
     }
 
     // if mode_a & 0x0001 {five_hundreds ^= 0x1FF;} // D1 never used for altitude
@@ -1644,43 +1607,34 @@ pub(crate) fn mode_a_to_mode_c(mode_a: u32) -> result::Result<u32, &'static str>
         one_hundreds = 6 - one_hundreds;
     }
 
-    let n = (five_hundreds * 5) + one_hundreds;
+    let n: u32 = (five_hundreds * 5) + one_hundreds;
     if n >= 13 {
         Ok(n - 13)
     } else {
-        Err("Invalid altitude")
+        Err("Invalid altitude".to_string())
     }
 }
 
 /// Even / Odd
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq, Default)]
 #[deku(type = "u8", bits = "1")]
 pub enum CPRFormat {
+    #[default]
     Even = 0,
     Odd = 1,
 }
 
-impl Default for CPRFormat {
-    fn default() -> Self {
-        Self::Even
-    }
-}
-
 impl fmt::Display for CPRFormat {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Even => "even",
-                Self::Odd => "odd",
-            }
-        )
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            CPRFormat::Even => write!(f, "even"),
+            CPRFormat::Odd => write!(f, "odd"),
+        }
     }
 }
 
 /// Positive / Negative
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "1")]
 pub enum Sign {
     Positive = 0,
@@ -1698,24 +1652,18 @@ impl Sign {
 }
 
 impl fmt::Display for Sign {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Positive => "",
-                Self::Negative => "-",
-            }
-        )
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Sign::Positive => write!(f, ""),
+            Sign::Negative => write!(f, "-"),
+        }
     }
 }
-
-const CHAR_LOOKUP: &[u8; 64] = b"#ABCDEFGHIJKLMNOPQRSTUVWXYZ##### ###############0123456789######";
 
 pub(crate) fn aircraft_identification_read(
     rest: &BitSlice<u8, Msb0>,
 ) -> Result<(&BitSlice<u8, Msb0>, String), DekuError> {
-    let mut inside_rest = rest;
+    let mut inside_rest: &BitSlice<u8, Msb0> = rest;
 
     let mut chars = vec![];
     for _ in 0..=6 {
@@ -1725,7 +1673,7 @@ pub(crate) fn aircraft_identification_read(
         }
         inside_rest = for_rest;
     }
-    let encoded = chars
+    let encoded: String = chars
         .into_iter()
         .map(|b| CHAR_LOOKUP[b as usize] as char)
         .collect::<String>();
@@ -1734,7 +1682,7 @@ pub(crate) fn aircraft_identification_read(
 }
 
 /// Airborne / Ground and SPI
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "3")]
 pub enum FlightStatus {
     NoAlertNoSPIAirborne = 0b000,
@@ -1748,25 +1696,22 @@ pub enum FlightStatus {
 }
 
 impl fmt::Display for FlightStatus {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::NoAlertNoSPIAirborne
-                | Self::AlertSPIAirborneGround
-                | Self::NoAlertSPIAirborneGround => "airborne?",
-                Self::NoAlertNoSPIOnGround => "ground?",
-                Self::AlertNoSPIAirborne => "airborne",
-                Self::AlertNoSPIOnGround => "ground",
-                _ => "reserved",
-            }
-        )
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            FlightStatus::NoAlertNoSPIAirborne |
+            FlightStatus::AlertSPIAirborneGround |
+            FlightStatus::NoAlertSPIAirborneGround => write!(f, "airborne?"),
+            FlightStatus::NoAlertNoSPIOnGround => write!(f, "ground?"),
+            FlightStatus::AlertNoSPIAirborne => write!(f, "airborne"),
+            FlightStatus::AlertNoSPIOnGround => write!(f, "ground"),
+            FlightStatus::Reserved |
+            FlightStatus::NotAssigned => write!(f, "reserved")
+        }
     }
 }
 
 /// Type of `DownlinkRequest`
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "5")]
 pub enum DownlinkRequest {
     None = 0b00000,
@@ -1778,23 +1723,23 @@ pub enum DownlinkRequest {
 }
 
 /// 13 bit encoded altitude
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct AC13Field(#[deku(reader = "Self::read(deku::rest)")] pub u16);
 
 impl AC13Field {
     // TODO Add unit
-    fn read(rest: &BitSlice<u8, Msb0>) -> result::Result<(&BitSlice<u8, Msb0>, u16), DekuError> {
+    fn read(rest: &BitSlice<u8, Msb0>) -> Result<(&BitSlice<u8, Msb0>, u16), DekuError> {
         let (rest, num) = u32::read(rest, (deku::ctx::Endian::Big, deku::ctx::BitSize(13)))?;
 
-        let m_bit = num & 0x0040;
-        let q_bit = num & 0x0010;
+        let m_bit: u32 = num & 0x0040;
+        let q_bit: u32 = num & 0x0010;
 
         if m_bit != 0 {
             // TODO: this might be wrong?
             Ok((rest, 0))
         } else if q_bit != 0 {
-            let n = ((num & 0x1f80) >> 2) | ((num & 0x0020) >> 1) | (num & 0x000f);
-            let n = n * 25;
+            let n: u32 = ((num & 0x1f80) >> 2) | ((num & 0x0020) >> 1) | (num & 0x000f);
+            let n: u32 = n * 25;
             if n > 1000 {
                 Ok((rest, (n - 1000) as u16))
             } else {
@@ -1812,7 +1757,7 @@ impl AC13Field {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct UtilityMessage {
     #[deku(bits = "4")]
     pub iis: u8,
@@ -1820,7 +1765,7 @@ pub struct UtilityMessage {
 }
 
 /// Message Type
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "2")]
 pub enum UtilityMessageType {
     NoInformation = 0b00,
@@ -1830,14 +1775,14 @@ pub enum UtilityMessageType {
 }
 
 /// Uplink / Downlink
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 #[deku(type = "u8", bits = "1")]
 pub enum KE {
     DownlinkELMTx = 0,
     UplinkELMAck = 1,
 }
 
-#[derive(Debug, PartialEq, Eq, DekuRead, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Eq, PartialEq)]
 #[deku(type = "u8", bits = "8")]
 pub enum BDS {
     /// (1, 0) Table A-2-16
@@ -1857,7 +1802,7 @@ pub enum BDS {
 }
 
 impl fmt::Display for BDS {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Empty(_) => {
                 writeln!(f, "Comm-B format: empty response")?;
@@ -1878,7 +1823,7 @@ impl fmt::Display for BDS {
 }
 
 /// To report the data link capability of the Mode S transponder/data link installation
-#[derive(Debug, PartialEq, Eq, DekuRead, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Eq, PartialEq)]
 pub struct DataLinkCapability {
     #[deku(bits = "1")]
     #[deku(pad_bits_after = "5")] // reserved
@@ -1911,30 +1856,30 @@ pub struct DataLinkCapability {
 }
 
 /// 13 bit identity code
-#[derive(Debug, PartialEq, Eq, DekuRead, Copy, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, DekuRead, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct IdentityCode(#[deku(reader = "Self::read(deku::rest)")] pub u16);
 
 impl IdentityCode {
-    fn read(rest: &BitSlice<u8, Msb0>) -> result::Result<(&BitSlice<u8, Msb0>, u16), DekuError> {
+    fn read(rest: &BitSlice<u8, Msb0>) -> Result<(&BitSlice<u8, Msb0>, u16), DekuError> {
         let (rest, num) = u32::read(rest, (deku::ctx::Endian::Big, deku::ctx::BitSize(13)))?;
 
-        let c1 = (num & 0b1_0000_0000_0000) >> 12;
-        let a1 = (num & 0b0_1000_0000_0000) >> 11;
-        let c2 = (num & 0b0_0100_0000_0000) >> 10;
-        let a2 = (num & 0b0_0010_0000_0000) >> 9;
-        let c4 = (num & 0b0_0001_0000_0000) >> 8;
-        let a4 = (num & 0b0_0000_1000_0000) >> 7;
-        let b1 = (num & 0b0_0000_0010_0000) >> 5;
-        let d1 = (num & 0b0_0000_0001_0000) >> 4;
-        let b2 = (num & 0b0_0000_0000_1000) >> 3;
-        let d2 = (num & 0b0_0000_0000_0100) >> 2;
-        let b4 = (num & 0b0_0000_0000_0010) >> 1;
-        let d4 = num & 0b0_0000_0000_0001;
+        let c1: u32 = (num & 0b1_0000_0000_0000) >> 12;
+        let a1: u32 = (num & 0b0_1000_0000_0000) >> 11;
+        let c2: u32 = (num & 0b0_0100_0000_0000) >> 10;
+        let a2: u32 = (num & 0b0_0010_0000_0000) >> 9;
+        let c4: u32 = (num & 0b0_0001_0000_0000) >> 8;
+        let a4: u32 = (num & 0b0_0000_1000_0000) >> 7;
+        let b1: u32 = (num & 0b0_0000_0010_0000) >> 5;
+        let d1: u32 = (num & 0b0_0000_0001_0000) >> 4;
+        let b2: u32 = (num & 0b0_0000_0000_1000) >> 3;
+        let d2: u32 = (num & 0b0_0000_0000_0100) >> 2;
+        let b4: u32 = (num & 0b0_0000_0000_0010) >> 1;
+        let d4: u32 = num & 0b0_0000_0000_0001;
 
-        let a = a4 << 2 | a2 << 1 | a1;
-        let b = b4 << 2 | b2 << 1 | b1;
-        let c = c4 << 2 | c2 << 1 | c1;
-        let d = d4 << 2 | d2 << 1 | d1;
+        let a: u32 = a4 << 2 | a2 << 1 | a1;
+        let b: u32 = b4 << 2 | b2 << 1 | b1;
+        let c: u32 = c4 << 2 | c2 << 1 | c1;
+        let d: u32 = d4 << 2 | d2 << 1 | d1;
 
         let num: u16 = (a << 12 | b << 8 | c << 4 | d) as u16;
         Ok((rest, num))
@@ -2200,9 +2145,9 @@ pub const CRC_TABLE: [u32; 256] = [
     0x00fa_0480,
 ];
 
-pub fn modes_checksum(message: &[u8], bits: usize) -> result::Result<u32, DekuError> {
+pub fn modes_checksum(message: &[u8], bits: usize) -> Result<u32, DekuError> {
     let mut rem: u32 = 0;
-    let n = bits / 8;
+    let n: usize = bits / 8;
 
     if (n < 3) || (message.len() < n) {
         return Err(DekuError::Incomplete(NeedSize::new(4)));
@@ -2214,9 +2159,9 @@ pub fn modes_checksum(message: &[u8], bits: usize) -> result::Result<u32, DekuEr
         rem &= 0x00ff_ffff;
     }
 
-    let msg_1 = u32::from(message[n - 3]) << 16;
-    let msg_2 = u32::from(message[n - 2]) << 8;
-    let msg_3 = u32::from(message[n - 1]);
+    let msg_1: u32 = u32::from(message[n - 3]) << 16;
+    let msg_2: u32 = u32::from(message[n - 2]) << 8;
+    let msg_3: u32 = u32::from(message[n - 1]);
     let xor_term: u32 = msg_1 ^ msg_2 ^ msg_3;
 
     rem ^= xor_term;

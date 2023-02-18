@@ -143,18 +143,13 @@ pub enum NavModes {
     TCAS,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub enum SilType {
     #[serde(rename = "perhour")]
     PerHour,
     #[serde(rename = "unknown")]
+    #[default]
     Unknown,
-}
-
-impl Default for SilType {
-    fn default() -> Self {
-        SilType::Unknown
-    }
 }
 
 impl AdsbJsonMessage {
