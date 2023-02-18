@@ -8,8 +8,36 @@ const ADSB_RAW_FRAME_SMALL: usize = 14;
 const ADSB_RAW_FRAME_LARGE: usize = 28;
 const ADSB_RAW_MODEAC_FRAME: usize = 4;
 
+// Helper function to format ADSB Raw frames from a single line of String.
+// Expected input is a &str slice.
+// Does not consume the input.
+// Returns a new String with control characters split from the input.
+
+pub fn format_adsb_raw_frame_from_str(line: &str) -> String {
+    // remove * from the start of the line, and ; \n from the end and return
+    line.trim_start_matches('*')
+        .trim_end_matches(|c| c == ';' || c == '\n')
+        .to_string()
+}
+
+// Helper function to format ADSB Raw frames from a &Vec<String>.
+// Expected input is &Vec<String>.
+// Does not consume the input.
+// Returns a new Vec<String> with control characters split from the input.
+
+pub fn format_adsb_raw_frames_from_vec_string(frames: &Vec<String>) -> Vec<String> {
+    let mut output: Vec<String> = vec![];
+    for line in frames {
+        if line.len() > 0 {
+            output.push(format_adsb_raw_frame_from_str(&line));
+        }
+    }
+
+    output
+}
+
 /// Helper function to format ADSB Raw frames from bytes.
-/// Expected input is a Vec<Vec<u8>>of the raw frame(s), including the control characters to start and end the frame.
+/// Expected input is a &Vec<Vec<u8>>of the raw frame(s), including the control characters to start and end the frame.
 /// Does not consume the input.
 /// Returns a vector of bytes, with each element of the array being a frame that can be passed in to the ADSB Raw parser.
 
@@ -79,6 +107,24 @@ pub fn format_adsb_raw_frames_from_bytes(bytes: &[u8]) -> Vec<Vec<u8>> {
     }
 
     formatted_frames
+}
+
+#[test]
+fn test_adsb_raw_parsing_from_str() {
+    let line_one = "*5DABE65A2FBFAF;\n";
+    let line_two = "*8DA1A3CC9909B814F004127F1107;\n";
+    let vec_of_lines = vec![line_one.to_string(), line_two.to_string()];
+
+    assert_eq!(format_adsb_raw_frame_from_str(line_one), "5DABE65A2FBFAF");
+    assert_eq!(
+        format_adsb_raw_frame_from_str(line_two),
+        "8DA1A3CC9909B814F004127F1107"
+    );
+
+    assert_eq!(
+        format_adsb_raw_frames_from_vec_string(&vec_of_lines),
+        ["5DABE65A2FBFAF", "8DA1A3CC9909B814F004127F1107"]
+    );
 }
 
 #[test]
