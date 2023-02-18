@@ -8,10 +8,10 @@ const ADSB_RAW_FRAME_SMALL: usize = 14;
 const ADSB_RAW_FRAME_LARGE: usize = 28;
 const ADSB_RAW_MODEAC_FRAME: usize = 4;
 
-// Helper function to format ADSB Raw frames from a single line of String.
-// Expected input is a &str slice.
-// Does not consume the input.
-// Returns a new String with control characters split from the input.
+/// Helper function to format ADSB Raw frames from a single line of String.
+/// Expected input is a &str slice.
+/// Does not consume the input.
+/// Returns a new String with control characters split from the input.
 
 pub fn format_adsb_raw_frame_from_str(line: &str) -> String {
     // remove * from the start of the line, and ; \n from the end and return
@@ -20,16 +20,16 @@ pub fn format_adsb_raw_frame_from_str(line: &str) -> String {
         .to_string()
 }
 
-// Helper function to format ADSB Raw frames from a &Vec<String>.
-// Expected input is &Vec<String>.
-// Does not consume the input.
-// Returns a new Vec<String> with control characters split from the input.
+/// Helper function to format ADSB Raw frames from a &Vec<String>.
+/// Expected input is &Vec<String>.
+/// Does not consume the input.
+/// Returns a new Vec<String> with control characters split from the input.
 
 pub fn format_adsb_raw_frames_from_vec_string(frames: &Vec<String>) -> Vec<String> {
     let mut output: Vec<String> = vec![];
     for line in frames {
-        if line.len() > 0 {
-            output.push(format_adsb_raw_frame_from_str(&line));
+        if !line.is_empty() {
+            output.push(format_adsb_raw_frame_from_str(line));
         }
     }
 
