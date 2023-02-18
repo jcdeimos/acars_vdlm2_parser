@@ -27,9 +27,9 @@ fn main() {
                     let mut attempted_decodes = 0;
                     // create a string from the buffer and split it on newline
                     let buffer_string = String::from_utf8_lossy(&buffer[..bytes_read]);
-                    let buffer_lines = buffer_string.split("\n");
+                    let buffer_lines = buffer_string.split('\n');
                     for line in buffer_lines {
-                        if line.len() > 0 {
+                        if !line.is_empty() {
                             attempted_decodes += 1;
                             // TODO: Perhaps deal with a suuuuuuuuper long json message
                             // that spans more than two packets? Probably such an outlier it isn't
@@ -48,7 +48,7 @@ fn main() {
 
                                 // if we have decoded any valid json there must never be a partially
                                 // decoded json waiting around. Ensure json_tries is empty
-                                if json_tries.len() > 0 {
+                                if !json_tries.is_empty() {
                                     json_tries = vec![];
                                 }
                             } else if line.starts_with('{') {
@@ -57,7 +57,7 @@ fn main() {
                                 json_tries.push(line.to_string());
                             } else if line.ends_with('}') {
                                 // this is the end of a json packet that likely started with the previous packet
-                                if json_tries.len() > 0 {
+                                if !json_tries.is_empty() {
                                     let mut json_line: String = json_tries.pop().unwrap();
                                     json_line.push_str(line);
 
@@ -74,7 +74,7 @@ fn main() {
                                     println!("Failed to decode JSON. Received end of JSON line but had no start");
                                 }
                             } else if line.starts_with('*') {
-                                let formatted_line = format_adsb_raw_frame_from_str(&line);
+                                let formatted_line = format_adsb_raw_frame_from_str(line);
                                 if let Ok(hex_line) = hex::decode(formatted_line) {
                                     if let Ok(message) = DecodeMessage::decode_message(
                                         &hex_line,
