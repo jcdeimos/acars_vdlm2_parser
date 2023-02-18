@@ -2,27 +2,52 @@
 // and then connect to the server and port and print out the response
 
 extern crate acars_vdlm2_parser;
+extern crate clap as clap;
 extern crate hex;
 
 use acars_vdlm2_parser::helpers::encode_adsb_raw_input::format_adsb_raw_frame_from_str;
 use acars_vdlm2_parser::DecodeMessage;
 use acars_vdlm2_parser::ExpectedMessageType;
-use std::env;
+use clap::Parser;
+use log::LevelFilter;
+use log::{error, info};
+use log4rs::append::file::FileAppender;
+use log4rs::config::{Appender, Config, Root};
+use log4rs::encode::pattern::PatternEncoder;
+use std::error::Error;
+use std::fs;
 use std::io::prelude::*;
 use std::net::TcpStream;
+use std::path::Path;
+use tokio::time::{sleep, Duration};
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    println!("Connecting to {}", &args[1]);
+const MAX_TCP_BUFFER_SIZE: usize = 5000;
 
-    if let Ok(mut stream) = TcpStream::connect(&args[1]) {
-        println!("Connected to {}", &args[1]);
-        let mut buffer: [u8; 3000] = [0; 3000];
+#[derive(Parser, Debug, Clone, Default)]
+#[command(name = "acars_vdlm2_parser Library Tester", author, version, about, long_about = None)]
+pub struct Input {
+    /// Semi-Colon separated list of server/ports to connect to
+    #[clap(long, required = true)]
+    list_of_servers: Vec<String>,
+    #[clap(long, value_parser, default_value = "./output.txt")]
+    log_file_path: String,
+    #[clap(long, value_parser)]
+    output_to_std_out: bool,
+    #[clap(long, value_parser)]
+    remove_existing_log_file: bool,
+}
+
+fn connect_to_and_monitor_server(server: &str) {
+    info!(target: server, "Connecting to {:?}", server);
+
+    if let Ok(mut stream) = TcpStream::connect(&server) {
+        info!(target: server, "Connected to {server}");
+        let mut buffer: [u8; MAX_TCP_BUFFER_SIZE] = [0; MAX_TCP_BUFFER_SIZE];
         let mut json_tries: Vec<String> = Vec::new();
         loop {
             match stream.read(&mut buffer) {
                 Ok(bytes_read) => {
-                    println!("Read {} bytes", bytes_read);
+                    info!(target: server, "Read {} bytes", bytes_read);
                     let mut successful_decodes = 0;
                     let mut attempted_decodes = 0;
                     // create a string from the buffer and split it on newline
@@ -40,10 +65,10 @@ fn main() {
                                 if let Ok(message) =
                                     DecodeMessage::decode_message(line, ExpectedMessageType::Json)
                                 {
-                                    println!("Message: {:?}", message);
+                                    info!(target: server, "Message: {:?}", message);
                                     successful_decodes += 1;
                                 } else {
-                                    println!("Failed to decode JSON");
+                                    error!(target: server, "Failed to decode JSON");
                                 }
 
                                 // if we have decoded any valid json there must never be a partially
@@ -65,13 +90,19 @@ fn main() {
                                         &json_line,
                                         ExpectedMessageType::Json,
                                     ) {
-                                        println!("Message from reconstituted lines: {:?}", message);
+                                        info!(
+                                            target: server,
+                                            "Message from reconstituted lines: {:?}", message
+                                        );
                                         successful_decodes += 1;
                                     } else {
-                                        println!("Failed to decode JSON from reconstituted lines");
+                                        error!(
+                                            target: server,
+                                            "Failed to decode JSON from reconstituted lines"
+                                        );
                                     }
                                 } else {
-                                    println!("Failed to decode JSON. Received end of JSON line but had no start");
+                                    error!(target: server,"Failed to decode JSON. Received end of JSON line but had no start");
                                 }
                             } else if line.starts_with('*') {
                                 let formatted_line = format_adsb_raw_frame_from_str(line);
@@ -80,23 +111,62 @@ fn main() {
                                         &hex_line,
                                         ExpectedMessageType::Raw,
                                     ) {
-                                        println!("Message: {:?}", message);
+                                        info!(target: server, "Message: {:?}", message);
                                         successful_decodes += 1;
                                     }
                                 }
                             } else {
-                                println!("Unknown message type!\nAttempted: {}", line);
+                                error!(
+                                    target: server,
+                                    "Unknown message type!\nEntry: {attempted_decodes} Attempted: {line}"
+                                );
                             }
                         }
                     }
-                    println!("Successful decodes: {}", successful_decodes);
-                    println!("Total messages attempted: {}", attempted_decodes);
-                    buffer = [0; 3000];
+                    info!(target: server, "Successful decodes: {}", successful_decodes);
+                    info!(
+                        target: server,
+                        "Total messages attempted: {}", attempted_decodes
+                    );
+                    buffer = [0; MAX_TCP_BUFFER_SIZE];
                 }
-                Err(e) => println!("Error: {}", e),
+                Err(e) => error!(target: server, "Error: {}", e),
             }
         }
     } else {
-        println!("Could not connect to {}", &args[1]);
+        error!(target: server, "Could not connect to {}", &server);
     }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let args: Input = Input::parse();
+
+    if args.remove_existing_log_file && Path::new(&args.log_file_path).exists() {
+        fs::remove_file(&args.log_file_path)?;
+    }
+
+    let logfile = FileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new(
+            "{d(%Y-%m-%d %H:%M:%S %Z)}:{l}:{t}:{m}\n",
+        )))
+        .build(args.log_file_path)?;
+
+    let config = Config::builder()
+        .appender(Appender::builder().build("logfile", Box::new(logfile)))
+        .build(Root::builder().appender("logfile").build(LevelFilter::Info))?;
+
+    log4rs::init_config(config)?;
+
+    for server in args.list_of_servers {
+        tokio::spawn(async move {
+            connect_to_and_monitor_server(&server);
+        });
+    }
+
+    loop {
+        sleep(Duration::from_millis(100)).await;
+    }
+
+    // Ok(())
 }
