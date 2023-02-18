@@ -21,20 +21,67 @@ use std::net::TcpStream;
 use std::path::Path;
 use tokio::time::{sleep, Duration};
 
-const MAX_TCP_BUFFER_SIZE: usize = 5000;
+const MAX_TCP_BUFFER_SIZE: usize = 8000;
 
 #[derive(Parser, Debug, Clone, Default)]
 #[command(name = "acars_vdlm2_parser Library Tester", author, version, about, long_about = None)]
 pub struct Input {
-    /// Semi-Colon separated list of server/ports to connect to
+    /// Server(s) to connect to
     #[clap(long, required = true)]
     list_of_servers: Vec<String>,
-    #[clap(long, value_parser, default_value = "./output.txt")]
+    /// Output file to log to
+    #[clap(long, value_parser, default_value = "./output.log")]
     log_file_path: String,
-    #[clap(long, value_parser)]
-    output_to_std_out: bool,
+    /// If the log file exists, remove it.
     #[clap(long, value_parser)]
     remove_existing_log_file: bool,
+    /// The run duration of the program, in seconds
+    #[clap(long, default_value = "10")]
+    run_duration: f64,
+}
+
+fn process_json_packet(
+    line: String,
+    successful_decodes: &mut u32,
+    json_tries: &mut Vec<String>,
+    server: &str,
+) {
+    // this is a valid json line
+    if let Ok(message) = DecodeMessage::decode_message(&line, ExpectedMessageType::Json) {
+        info!(target: server, "Message: {:?}", message);
+        *successful_decodes += 1;
+    } else {
+        error!(target: server, "Failed to decode JSON");
+    }
+
+    // if we have decoded any valid json there must never be a partially
+    // decoded json waiting around. Ensure json_tries is empty
+    if !json_tries.is_empty() {
+        *json_tries = vec![];
+    }
+}
+
+fn process_json_packet_from_parts(
+    line: String,
+    successful_decodes: &mut u32,
+    json_tries: &mut Vec<String>,
+    server: &str,
+) {
+    let mut json_line: String = json_tries.pop().unwrap();
+    json_line.push_str(&line.to_string());
+
+    if let Ok(message) = DecodeMessage::decode_message(&json_line, ExpectedMessageType::Json) {
+        info!(
+            target: server,
+            "Message from reconstituted lines: {:?}", message
+        );
+        *successful_decodes += 1;
+    } else {
+        error!(
+            target: server,
+            "Failed to decode JSON from reconstituted lines"
+        );
+    }
 }
 
 fn connect_to_and_monitor_server(server: &str) {
@@ -48,8 +95,8 @@ fn connect_to_and_monitor_server(server: &str) {
             match stream.read(&mut buffer) {
                 Ok(bytes_read) => {
                     info!(target: server, "Read {} bytes", bytes_read);
-                    let mut successful_decodes = 0;
-                    let mut attempted_decodes = 0;
+                    let mut successful_decodes: u32 = 0;
+                    let mut attempted_decodes: u32 = 0;
                     // create a string from the buffer and split it on newline
                     let buffer_string = String::from_utf8_lossy(&buffer[..bytes_read]);
                     let buffer_lines = buffer_string.split('\n');
@@ -61,21 +108,12 @@ fn connect_to_and_monitor_server(server: &str) {
                             // worth doing?
 
                             if line.starts_with('{') && line.ends_with('}') {
-                                // this is a valid json line
-                                if let Ok(message) =
-                                    DecodeMessage::decode_message(line, ExpectedMessageType::Json)
-                                {
-                                    info!(target: server, "Message: {:?}", message);
-                                    successful_decodes += 1;
-                                } else {
-                                    error!(target: server, "Failed to decode JSON");
-                                }
-
-                                // if we have decoded any valid json there must never be a partially
-                                // decoded json waiting around. Ensure json_tries is empty
-                                if !json_tries.is_empty() {
-                                    json_tries = vec![];
-                                }
+                                process_json_packet(
+                                    line.to_string(),
+                                    &mut successful_decodes,
+                                    &mut json_tries,
+                                    &server,
+                                )
                             } else if line.starts_with('{') {
                                 // this is the start of a json message, but it's been cut off. Likely
                                 // it will be in the next packet
@@ -83,24 +121,12 @@ fn connect_to_and_monitor_server(server: &str) {
                             } else if line.ends_with('}') {
                                 // this is the end of a json packet that likely started with the previous packet
                                 if !json_tries.is_empty() {
-                                    let mut json_line: String = json_tries.pop().unwrap();
-                                    json_line.push_str(line);
-
-                                    if let Ok(message) = DecodeMessage::decode_message(
-                                        &json_line,
-                                        ExpectedMessageType::Json,
-                                    ) {
-                                        info!(
-                                            target: server,
-                                            "Message from reconstituted lines: {:?}", message
-                                        );
-                                        successful_decodes += 1;
-                                    } else {
-                                        error!(
-                                            target: server,
-                                            "Failed to decode JSON from reconstituted lines"
-                                        );
-                                    }
+                                    process_json_packet_from_parts(
+                                        line.to_string(),
+                                        &mut successful_decodes,
+                                        &mut json_tries,
+                                        &server,
+                                    );
                                 } else {
                                     error!(target: server,"Failed to decode JSON. Received end of JSON line but had no start");
                                 }
@@ -128,7 +154,6 @@ fn connect_to_and_monitor_server(server: &str) {
                         target: server,
                         "Total messages attempted: {}", attempted_decodes
                     );
-                    buffer = [0; MAX_TCP_BUFFER_SIZE];
                 }
                 Err(e) => error!(target: server, "Error: {}", e),
             }
@@ -141,6 +166,7 @@ fn connect_to_and_monitor_server(server: &str) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args: Input = Input::parse();
+    let run_duration = (args.run_duration * 1000.0) as u64;
 
     if args.remove_existing_log_file && Path::new(&args.log_file_path).exists() {
         fs::remove_file(&args.log_file_path)?;
@@ -148,7 +174,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let logfile = FileAppender::builder()
         .encoder(Box::new(PatternEncoder::new(
-            "{d(%Y-%m-%d %H:%M:%S %Z)}:{l}:{t}:{m}\n",
+            "{d(%Y-%m-%d %H:%M:%S)}:{l}:{t}:{m}\n",
         )))
         .build(args.log_file_path)?;
 
@@ -163,10 +189,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             connect_to_and_monitor_server(&server);
         });
     }
-
-    loop {
-        sleep(Duration::from_millis(100)).await;
-    }
-
-    // Ok(())
+    println!("Started up, running for {run_duration} milliseconds.");
+    info!(target: "Main", "Started up, running for {run_duration} milliseconds.");
+    sleep(Duration::from_millis(run_duration)).await;
+    std::process::exit(0);
 }
