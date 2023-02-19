@@ -11,13 +11,23 @@ const ADSB_RAW_MODEAC_FRAME: usize = 4;
 /// Helper function to format ADSB Raw frames from a single line of String.
 /// Expected input is a &str slice.
 /// Does not consume the input.
-/// Returns a new String with control characters split from the input.
+/// Returns a Result<String, ADSBRawError> with control characters split from the input.
 
-pub fn format_adsb_raw_frame_from_str(line: &str) -> String {
+pub fn format_adsb_raw_frame_from_str(line: &str) -> Result<String, ADSBRawError> {
     // remove * from the start of the line, and ; \n from the end and return
-    line.trim_start_matches('*')
+    let formatted_line = line
+        .trim_start_matches('*')
         .trim_end_matches(|c| c == ';' || c == '\n')
-        .to_string()
+        .to_string();
+
+    if formatted_line.len() == ADSB_RAW_FRAME_LARGE || formatted_line.len() == ADSB_RAW_FRAME_SMALL
+    {
+        return Ok(formatted_line);
+    }
+
+    Err(ADSBRawError::ByteSequenceWrong {
+        size: formatted_line.len() as u8,
+    })
 }
 
 /// Helper function to format ADSB Raw frames from a &Vec<String>.
@@ -29,7 +39,9 @@ pub fn format_adsb_raw_frames_from_vec_string(frames: &Vec<String>) -> Vec<Strin
     let mut output: Vec<String> = vec![];
     for line in frames {
         if !line.is_empty() {
-            output.push(format_adsb_raw_frame_from_str(line));
+            if let Ok(formatted_line) = format_adsb_raw_frame_from_str(line) {
+                output.push(formatted_line);
+            }
         }
     }
 
@@ -115,9 +127,12 @@ fn test_adsb_raw_parsing_from_str() {
     let line_two = "*8DA1A3CC9909B814F004127F1107;\n";
     let vec_of_lines = vec![line_one.to_string(), line_two.to_string()];
 
-    assert_eq!(format_adsb_raw_frame_from_str(line_one), "5DABE65A2FBFAF");
     assert_eq!(
-        format_adsb_raw_frame_from_str(line_two),
+        format_adsb_raw_frame_from_str(line_one).unwrap(),
+        "5DABE65A2FBFAF"
+    );
+    assert_eq!(
+        format_adsb_raw_frame_from_str(line_two).unwrap(),
         "8DA1A3CC9909B814F004127F1107"
     );
 

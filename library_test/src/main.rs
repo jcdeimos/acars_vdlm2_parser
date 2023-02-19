@@ -68,7 +68,7 @@ fn process_json_packet_from_parts(
     server: &str,
 ) {
     let mut json_line: String = json_tries.pop().unwrap();
-    json_line.push_str(&line.to_string());
+    json_line.push_str(&line);
 
     if let Ok(message) = DecodeMessage::decode_message(&json_line, ExpectedMessageType::Json) {
         info!(
@@ -84,13 +84,76 @@ fn process_json_packet_from_parts(
     }
 }
 
+fn process_raw_packet(
+    line: String,
+    successful_decodes: &mut u32,
+    adsb_raw_tries: &mut Vec<String>,
+    server: &str,
+) {
+    let formatted_line = format_adsb_raw_frame_from_str(&line);
+    match formatted_line {
+        Ok(good_line) => {
+            if let Ok(hex_line) = hex::decode(good_line) {
+                if let Ok(message) =
+                    DecodeMessage::decode_message(&hex_line, ExpectedMessageType::Raw)
+                {
+                    info!(target: server, "Message: {:?}", message);
+                    *successful_decodes += 1;
+                }
+            }
+
+            if !adsb_raw_tries.is_empty() {
+                *adsb_raw_tries = vec![];
+            }
+        }
+        Err(_) => adsb_raw_tries.push(line),
+    }
+}
+
+fn process_raw_packet_from_parts(
+    line: String,
+    successful_decodes: &mut u32,
+    adsb_raw_tries: &mut Vec<String>,
+    server: &str,
+) {
+    // this may be the second part of a cut off ADSB Raw frame. Reconstruct, and attempted decode
+    let mut attempted_line = adsb_raw_tries.pop().unwrap();
+
+    attempted_line.push_str(&line);
+
+    if let Ok(message) = format_adsb_raw_frame_from_str(&attempted_line) {
+        if let Ok(hex_line) = hex::decode(&message) {
+            if let Ok(decoded_message) =
+                DecodeMessage::decode_message(&hex_line, ExpectedMessageType::Raw)
+            {
+                info!(
+                    target: server,
+                    "Message from reconstituted raw frame: {:?}", decoded_message
+                );
+                *successful_decodes += 1;
+            }
+        } else {
+            error!(
+                target: server,
+                "Failed to create hex from reconstituted raw frame {message}"
+            );
+        }
+    } else {
+        error!(
+            target: server,
+            "Failed to decode reconstituted ADSB Raw frame: {}", attempted_line
+        );
+    }
+}
+
 fn connect_to_and_monitor_server(server: &str) {
     info!(target: server, "Connecting to {:?}", server);
 
-    if let Ok(mut stream) = TcpStream::connect(&server) {
+    if let Ok(mut stream) = TcpStream::connect(server) {
         info!(target: server, "Connected to {server}");
         let mut buffer: [u8; MAX_TCP_BUFFER_SIZE] = [0; MAX_TCP_BUFFER_SIZE];
         let mut json_tries: Vec<String> = Vec::new();
+        let mut adsb_raw_tries: Vec<String> = Vec::new();
         loop {
             match stream.read(&mut buffer) {
                 Ok(bytes_read) => {
@@ -112,7 +175,7 @@ fn connect_to_and_monitor_server(server: &str) {
                                     line.to_string(),
                                     &mut successful_decodes,
                                     &mut json_tries,
-                                    &server,
+                                    server,
                                 )
                             } else if line.starts_with('{') {
                                 // this is the start of a json message, but it's been cut off. Likely
@@ -125,22 +188,27 @@ fn connect_to_and_monitor_server(server: &str) {
                                         line.to_string(),
                                         &mut successful_decodes,
                                         &mut json_tries,
-                                        &server,
+                                        server,
                                     );
                                 } else {
                                     error!(target: server,"Failed to decode JSON. Received end of JSON line but had no start");
                                 }
                             } else if line.starts_with('*') {
-                                let formatted_line = format_adsb_raw_frame_from_str(line);
-                                if let Ok(hex_line) = hex::decode(formatted_line) {
-                                    if let Ok(message) = DecodeMessage::decode_message(
-                                        &hex_line,
-                                        ExpectedMessageType::Raw,
-                                    ) {
-                                        info!(target: server, "Message: {:?}", message);
-                                        successful_decodes += 1;
-                                    }
-                                }
+                                process_raw_packet(
+                                    line.to_string(),
+                                    &mut successful_decodes,
+                                    &mut adsb_raw_tries,
+                                    server,
+                                );
+                            } else if !adsb_raw_tries.is_empty()
+                                && (line.ends_with(';') || line.ends_with(";\n"))
+                            {
+                                process_raw_packet_from_parts(
+                                    line.to_string(),
+                                    &mut successful_decodes,
+                                    &mut adsb_raw_tries,
+                                    server,
+                                );
                             } else {
                                 error!(
                                     target: server,
