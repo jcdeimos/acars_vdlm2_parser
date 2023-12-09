@@ -6,7 +6,7 @@ use std::fmt::Formatter;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::time::Duration;
-use byte_unit::Byte;
+use byte_unit::{Byte, UnitType};
 use humantime::format_duration;
 use chrono::{DateTime, SecondsFormat, Utc};
 use glob::{glob, GlobResult, Paths, PatternError};
@@ -113,7 +113,7 @@ pub struct RunDurations {
     pub large_queue_deser_ns: i64,
     pub total_run_ms: i64,
     pub total_run_ns: i64
-    
+
 }
 
 impl RunDurations {
@@ -155,7 +155,7 @@ impl RunDurations {
             format!(
                 "{} (Memory size {})",
                 self.run_processed_items.separate_with_commas(),
-                self.queue_memory_size.get_appropriate_unit(false)
+                self.queue_memory_size.get_appropriate_unit(UnitType::Both)
             )
         ]);
         result_table.add_row(row![
@@ -207,12 +207,12 @@ impl SpeedTestComparisons {
             format!(
                 "{} (Memory size {})",
                 self.test_one_results.run_processed_items.separate_with_commas(),
-                self.test_one_results.queue_memory_size.get_appropriate_unit(false)
+                self.test_one_results.queue_memory_size.get_appropriate_unit(UnitType::Both)
             ),
             format!(
                 "{} (Memory size {})",
                 self.test_two_results.run_processed_items.separate_with_commas(),
-                self.test_two_results.queue_memory_size.get_appropriate_unit(false)
+                self.test_two_results.queue_memory_size.get_appropriate_unit(UnitType::Both)
             ),
         ]);
         comparison_table.add_row(row![
