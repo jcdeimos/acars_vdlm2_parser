@@ -89,8 +89,8 @@ impl AcarsVdlm2Message {
                 vdlm2.clear_station_name(),
             AcarsVdlm2Message::AcarsMessage(acars) =>
                 acars.clear_station_name(),
-            AcarsVdlm2Message::HfdlMessage(_) => {
-                unimplemented!("HFDL clear station name not implemented");
+            AcarsVdlm2Message::HfdlMessage(hfdl) => {
+                hfdl.clear_station_name();
             }
         }
     }
@@ -103,8 +103,8 @@ impl AcarsVdlm2Message {
                 vdlm2.set_station_name(station_name),
             AcarsVdlm2Message::AcarsMessage(acars) =>
                 acars.set_station_name(station_name),
-            AcarsVdlm2Message::HfdlMessage(_) => {
-                unimplemented!("HFDL set station name not implemented");
+            AcarsVdlm2Message::HfdlMessage(hfdl) => {
+                hfdl.set_station_name(station_name);
             }
         }
     }
@@ -154,8 +154,8 @@ impl AcarsVdlm2Message {
                 vdlm2.clear_time(),
             AcarsVdlm2Message::AcarsMessage(acars) =>
                 acars.clear_time(),
-            AcarsVdlm2Message::HfdlMessage(_) => {
-                unimplemented!("HFDL clear time not implemented");
+            AcarsVdlm2Message::HfdlMessage(hfdl) => {
+                hfdl.clear_time();
             }
         }
     }
@@ -168,8 +168,8 @@ impl AcarsVdlm2Message {
                 vdlm2.get_time(),
             AcarsVdlm2Message::AcarsMessage(acars) =>
                 acars.get_time(),
-            AcarsVdlm2Message::HfdlMessage(_) => {
-                unimplemented!("HFDL get time not implemented");
+            AcarsVdlm2Message::HfdlMessage(hfdl) => {
+                hfdl.get_time()
             }
         }
     }
