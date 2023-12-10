@@ -302,6 +302,15 @@ pub struct ATCData {
     freq: Option<ATCFreq>,
     #[serde(skip_serializing_if = "Option::is_none")]
     icao_unit_name_freq: Option<ATCIcaoUnitNameFreq>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    alt: Option<ATCDataAlt>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ATCDataAlt {
+    choice: String,
+    data: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
