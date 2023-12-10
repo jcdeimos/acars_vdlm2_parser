@@ -420,17 +420,12 @@ pub struct SPDUorLPDUSource {
     ac_info: Option<LPDUAircraftInfo>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Default)]
 #[serde(try_from = "String", deny_unknown_fields)]
 pub enum LPDUSrcType {
+    #[default]
     Aircraft,
     GroundStation
-}
-
-impl Default for LPDUSrcType {
-    fn default() -> Self {
-        LPDUSrcType::Aircraft
-    }
 }
 
 impl TryFrom<String> for LPDUSrcType {
