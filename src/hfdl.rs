@@ -249,6 +249,8 @@ pub struct LPDUAcars {
     #[serde(rename = "media-adv", skip_serializing_if = "Option::is_none")]
     media_advisory: Option<LPDUAcarsMediaAdvisory>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    mfi: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     arinc622: Option<Arinc622>,
 }
 
@@ -296,6 +298,76 @@ pub struct ATCData {
     free_text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     icao_facility_designation: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    freq: Option<ATCFreq>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icao_unit_name_freq: Option<ATCIcaoUnitNameFreq>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ATCIcaoUnitNameFreq {
+    icao_unit_name: ATCICAOUnitName,
+    freq: ATCFreq,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ATCICAOUnitName {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icao_facility_id: Option<ICAOFacilityId>,
+    icao_facility_function: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ICAOFacilityId {
+    choice: String,
+    data: ICAOFacilityIdData,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ICAOFacilityIdData {
+    icao_facility_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ATCFreq {
+    pub choice: String,
+    pub data: ATCFreqData,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ATCFreqData {
+    vhf: ATCFreqDataType,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ATCFreqDataType {
+    val: f64,
+    unit: FrequencyLabel
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(try_from = "String")]
+pub enum FrequencyLabel {
+    #[default]
+    MHz,
+}
+
+impl TryFrom<String> for FrequencyLabel {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
+            "MHz" => Ok(FrequencyLabel::MHz),
+            _ => Err(format!("Unknown FrequencyLabel: {}", value))
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
