@@ -309,7 +309,8 @@ pub struct ATCUplinkMsg {
 #[serde(deny_unknown_fields)]
 pub struct ATCUplinkHeader {
     msg_id: u16,
-    timestamp: UTCTime,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timestamp: Option<UTCTime>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
