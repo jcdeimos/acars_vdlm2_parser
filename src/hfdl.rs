@@ -369,7 +369,10 @@ pub struct ICAOFacilityId {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ICAOFacilityIdData {
-    icao_facility_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icao_facility_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icao_facility_designation: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -421,6 +424,8 @@ pub struct ATCUplinkMsg {
 #[serde(deny_unknown_fields)]
 pub struct ATCUplinkHeader {
     msg_id: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    msg_ref: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     timestamp: Option<UTCTime>,
 }
