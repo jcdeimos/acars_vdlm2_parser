@@ -335,6 +335,14 @@ pub struct ATCData {
     icao_unit_name_freq: Option<ATCIcaoUnitNameFreq>,
     #[serde(skip_serializing_if = "Option::is_none")]
     alt: Option<ATCDataAlt>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    alt_alt: Option<Vec<ATCDataBlockAlt>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ATCDataBlockAlt {
+    alt: ATCDataAlt
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
