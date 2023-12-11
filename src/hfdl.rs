@@ -252,6 +252,37 @@ pub struct LPDUAcars {
     mfi: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     arinc622: Option<Arinc622>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    miam: Option<Miam>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct Miam {
+    pub single_transfer: MiamSingleTransfer,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct MiamSingleTransfer {
+    pub miam_core: MiamCore,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct MiamCore {
+    pub version: u8,
+    pub pdu_type: u8,
+    pub ack: MiamCoreAck
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct MiamCoreAck {
+    pub pdu_len: u16,
+    pub aircraft_id: String,
+    pub msg_ack_num: u16,
+    pub ack_xfer_result: u8,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
