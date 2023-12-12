@@ -576,13 +576,13 @@ pub struct PDUStats {
 #[serde(deny_unknown_fields)]
 pub struct PDUStatCounts {
     #[serde(rename = "300bps")]
-    three_hunderd_bps: u8,
+    three_hundred_bps: u8,
     #[serde(rename = "600bps")]
-    six_hunderd_bps: u8,
+    six_hundred_bps: u8,
     #[serde(rename = "1200bps")]
-    twelve_hunderd_bps: u8,
+    twelve_hundred_bps: u8,
     #[serde(rename = "1800bps")]
-    eighteen_hunderd_bps: u8,
+    eighteen_hundred_bps: u8,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
