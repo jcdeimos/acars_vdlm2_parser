@@ -89,9 +89,8 @@ impl AcarsVdlm2Message {
                 vdlm2.clear_station_name(),
             AcarsVdlm2Message::AcarsMessage(acars) =>
                 acars.clear_station_name(),
-            AcarsVdlm2Message::HfdlMessage(hfdl) => {
-                hfdl.clear_station_name();
-            }
+            AcarsVdlm2Message::HfdlMessage(hfdl) =>
+                hfdl.clear_station_name(),
         }
     }
 
@@ -103,9 +102,8 @@ impl AcarsVdlm2Message {
                 vdlm2.set_station_name(station_name),
             AcarsVdlm2Message::AcarsMessage(acars) =>
                 acars.set_station_name(station_name),
-            AcarsVdlm2Message::HfdlMessage(hfdl) => {
-                hfdl.set_station_name(station_name);
-            }
+            AcarsVdlm2Message::HfdlMessage(hfdl) =>
+                hfdl.set_station_name(station_name),
         }
     }
 
@@ -117,9 +115,8 @@ impl AcarsVdlm2Message {
                 vdlm2.clear_proxy_details(),
             AcarsVdlm2Message::AcarsMessage(acars) =>
                 acars.clear_proxy_details(),
-            AcarsVdlm2Message::HfdlMessage(hfdl) => {
-                hfdl.clear_proxy_details();
-            }
+            AcarsVdlm2Message::HfdlMessage(hfdl) =>
+                hfdl.clear_proxy_details(),
         }
     }
 
@@ -155,7 +152,7 @@ impl AcarsVdlm2Message {
             AcarsVdlm2Message::AcarsMessage(acars) =>
                 acars.clear_time(),
             AcarsVdlm2Message::HfdlMessage(hfdl) => {
-                hfdl.clear_time();
+                hfdl.clear_time(),
             }
         }
     }
