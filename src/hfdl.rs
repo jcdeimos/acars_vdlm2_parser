@@ -473,12 +473,24 @@ pub struct SPDUorLPDUSource {
     ac_info: Option<LPDUAircraftInfo>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, Eq, PartialEq, Default)]
 #[serde(try_from = "String", deny_unknown_fields)]
 pub enum LPDUSrcType {
     #[default]
     Aircraft,
     GroundStation
+}
+
+// Helper to serialize the enum back to the original string.
+impl Serialize for LPDUSrcType {
+    fn serialize<S>(&self, serializer: S) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
+        where
+            S: serde::Serializer {
+        match self {
+            LPDUSrcType::Aircraft => serializer.serialize_str("Aircraft"),
+            LPDUSrcType::GroundStation => serializer.serialize_str("Ground station"),
+        }
+    }
 }
 
 impl TryFrom<String> for LPDUSrcType {
