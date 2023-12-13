@@ -400,25 +400,7 @@ pub struct ATCFreqData {
 #[serde(deny_unknown_fields)]
 pub struct ATCFreqDataType {
     val: f64,
-    unit: FrequencyLabel
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-#[serde(try_from = "String")]
-pub enum FrequencyLabel {
-    #[default]
-    MHz,
-}
-
-impl TryFrom<String> for FrequencyLabel {
-    type Error = String;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.as_str() {
-            "MHz" => Ok(FrequencyLabel::MHz),
-            _ => Err(format!("Unknown FrequencyLabel: {}", value))
-        }
-    }
+    unit: String
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -467,42 +449,10 @@ pub struct LPDUACARSMediaAdivsoryLinksAvailble {
 #[serde(deny_unknown_fields)]
 pub struct SPDUorLPDUSource {
     #[serde(rename = "type")]
-    source_type: LPDUSrcType,
+    source_type: String,
     id: u16,
     #[serde(skip_serializing_if = "Option::is_none")]
     ac_info: Option<LPDUAircraftInfo>,
-}
-
-#[derive(Deserialize, Debug, Clone, Eq, PartialEq, Default)]
-#[serde(try_from = "String", deny_unknown_fields)]
-pub enum LPDUSrcType {
-    #[default]
-    Aircraft,
-    GroundStation
-}
-
-// Helper to serialize the enum back to the original string.
-impl Serialize for LPDUSrcType {
-    fn serialize<S>(&self, serializer: S) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
-        where
-            S: serde::Serializer {
-        match self {
-            LPDUSrcType::Aircraft => serializer.serialize_str("Aircraft"),
-            LPDUSrcType::GroundStation => serializer.serialize_str("Ground station"),
-        }
-    }
-}
-
-impl TryFrom<String> for LPDUSrcType {
-    type Error = String;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.as_str() {
-            "Aircraft" => Ok(LPDUSrcType::Aircraft),
-            "Ground station" => Ok(LPDUSrcType::GroundStation),
-            _ => Err(format!("Unknown LPDUSrcType: {}", value))
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
