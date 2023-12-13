@@ -85,12 +85,9 @@ impl AcarsVdlm2Message {
     pub fn clear_station_name(&mut self) {
         trace!("Clearing the station name for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
-                vdlm2.clear_station_name(),
-            AcarsVdlm2Message::AcarsMessage(acars) =>
-                acars.clear_station_name(),
-            AcarsVdlm2Message::HfdlMessage(hfdl) =>
-                hfdl.clear_station_name(),
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_station_name(),
+            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_station_name(),
+            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_station_name(),
         }
     }
 
@@ -111,12 +108,9 @@ impl AcarsVdlm2Message {
     pub fn clear_proxy_details(&mut self) {
         trace!("Clearing the proxy details for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
-                vdlm2.clear_proxy_details(),
-            AcarsVdlm2Message::AcarsMessage(acars) =>
-                acars.clear_proxy_details(),
-            AcarsVdlm2Message::HfdlMessage(hfdl) =>
-                hfdl.clear_proxy_details(),
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_proxy_details(),
+            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_proxy_details(),
+            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_proxy_details(),
         }
     }
 
@@ -131,15 +125,12 @@ impl AcarsVdlm2Message {
         trace!("Setting the proxy details for {:?} to include proxy {} and router version {}",
             &self, proxied_by, acars_router_version);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => {
-                vdlm2.set_proxy_details(proxied_by, acars_router_version)
-            }
-            AcarsVdlm2Message::AcarsMessage(acars) => {
-                acars.set_proxy_details(proxied_by, acars_router_version)
-            }
-            AcarsVdlm2Message::HfdlMessage(hfdl) => {
-                hfdl.set_proxy_details(proxied_by, acars_router_version)
-            }
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
+                vdlm2.set_proxy_details(proxied_by, acars_router_version),
+            AcarsVdlm2Message::AcarsMessage(acars) =>
+                acars.set_proxy_details(proxied_by, acars_router_version),
+            AcarsVdlm2Message::HfdlMessage(hfdl) =>
+                hfdl.set_proxy_details(proxied_by, acars_router_version),
         }
     }
 
@@ -147,13 +138,9 @@ impl AcarsVdlm2Message {
     pub fn clear_time(&mut self) {
         trace!("Clearing the time for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
-                vdlm2.clear_time(),
-            AcarsVdlm2Message::AcarsMessage(acars) =>
-                acars.clear_time(),
-            AcarsVdlm2Message::HfdlMessage(hfdl) => {
-                hfdl.clear_time(),
-            }
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_time(),
+            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_time(),
+            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_time(),
         }
     }
 
@@ -161,13 +148,9 @@ impl AcarsVdlm2Message {
     pub fn get_time(&self) -> Option<f64> {
         trace!("Getting the time from {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
-                vdlm2.get_time(),
-            AcarsVdlm2Message::AcarsMessage(acars) =>
-                acars.get_time(),
-            AcarsVdlm2Message::HfdlMessage(hfdl) => {
-                hfdl.get_time()
-            }
+            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.get_time(),
+            AcarsVdlm2Message::AcarsMessage(acars) => acars.get_time(),
+            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.get_time()
         }
     }
 
@@ -177,9 +160,7 @@ impl AcarsVdlm2Message {
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_freq_skew(),
             AcarsVdlm2Message::AcarsMessage(_) => {}
-            AcarsVdlm2Message::HfdlMessage(hfdl) => {
-                hfdl.clear_freq_skew();
-            }
+            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_freq_skew(),
         }
     }
 
@@ -199,9 +180,7 @@ impl AcarsVdlm2Message {
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_noise_level(),
             AcarsVdlm2Message::AcarsMessage(_) => {}
-            AcarsVdlm2Message::HfdlMessage(hfdl) => {
-                hfdl.clear_noise_level();
-            }
+            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_noise_level()
         }
     }
 
@@ -221,9 +200,7 @@ impl AcarsVdlm2Message {
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_sig_level(),
             AcarsVdlm2Message::AcarsMessage(_) => {}
-            AcarsVdlm2Message::HfdlMessage(hfdl) => {
-                hfdl.clear_sig_level();
-            }
+            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_sig_level(),
         }
     }
 
