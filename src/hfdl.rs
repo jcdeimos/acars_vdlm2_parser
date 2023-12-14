@@ -348,6 +348,20 @@ pub struct ATCData {
     time: Option<UTCTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     icao_facility_designation_tp4_table: Option<ICAOFacilityDesignationTP4Table>,
+    pos: Option<DownlinkPosition>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct DownlinkPosition {
+    choice: String,
+    data: DownlinkPositionData,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct DownlinkPositionData {
+    fix: String
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
