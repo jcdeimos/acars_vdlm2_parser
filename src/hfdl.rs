@@ -311,12 +311,15 @@ pub struct ADSC {
 #[serde(deny_unknown_fields)]
 pub struct CPDLC {
     pub err: bool,
-    pub atc_uplink_msg: ATCUplinkMsg,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atc_uplink_msg: Option<ATCDownUpLinkMsg>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atc_downlink_msg: Option<ATCDownUpLinkMsg>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(deny_unknown_fields)]
-pub struct ATCUplinkMessageElementId {
+pub struct ATCDownUplinkMessageElementId {
     pub choice_label: String,
     pub choice: String,
     pub data: ATCData,
@@ -337,6 +340,49 @@ pub struct ATCData {
     alt: Option<ATCDataAlt>,
     #[serde(skip_serializing_if = "Option::is_none")]
     alt_alt: Option<Vec<ATCDataBlockAlt>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    beacon_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dist_offset_dir: Option<ATCDataDistOffsetDir>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    time: Option<UTCTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icao_facility_designation_tp4_table: Option<ICAOFacilityDesignationTP4Table>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ICAOFacilityDesignationTP4Table {
+    icao_facility_designation: String,
+    tp4table: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ATCDataDistOffsetDir {
+    dir: String,
+    dist_offset: DistOffset
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct DistOffset {
+    choice: String,
+    data: DistOffsetData
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct DistOffsetData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dist_offset_nm: Option<Offset>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct Offset {
+    val: f64,
+    unit: String
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -393,7 +439,10 @@ pub struct ATCFreq {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ATCFreqData {
-    vhf: ATCFreqDataType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    vhf: Option<ATCFreqDataType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    hf: Option<ATCFreqDataType>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -405,14 +454,25 @@ pub struct ATCFreqDataType {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(deny_unknown_fields)]
-pub struct ATCUplinkMsg {
-    pub header: ATCUplinkHeader,
-    pub atc_uplink_msg_element_id: ATCUplinkMessageElementId
+pub struct ATCDownUpLinkMsg {
+    pub header: ATCDownUplinkHeader,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atc_uplink_msg_element_id: Option<ATCDownUplinkMessageElementId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atc_uplink_msg_element_id_seq: Option<Vec<ATCUplinkMessageElementIdSequence>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atc_downlink_msg_element_id: Option<ATCDownUplinkMessageElementId>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(deny_unknown_fields)]
-pub struct ATCUplinkHeader {
+pub struct ATCUplinkMessageElementIdSequence {
+    pub atc_uplink_msg_element_id: ATCDownUplinkMessageElementId,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ATCDownUplinkHeader {
     msg_id: u16,
     #[serde(skip_serializing_if = "Option::is_none")]
     msg_ref: Option<u16>,
@@ -453,6 +513,8 @@ pub struct SPDUorLPDUSource {
     id: u16,
     #[serde(skip_serializing_if = "Option::is_none")]
     ac_info: Option<LPDUAircraftInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -465,7 +527,19 @@ pub struct LPDUType {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(deny_unknown_fields)]
 pub struct LPDUAircraftInfo {
-    icao: String
+    icao: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    regnr: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    typecode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    opercode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    manuf: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    owner: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -502,6 +576,44 @@ pub struct LPDUHfnPdu {
     last_freq_change_cause: Option<LastFreqChangeCause>,
     #[serde(skip_serializing_if = "Option::is_none")]
     acars: Option<LPDUAcars>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    request_data: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    systable_partial: Option<SysTablePartial>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    systable_complete: Option<SysTable>
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct SysTable {
+    pub err: bool,
+    pub version: u8,
+    pub ground_stations: Vec<SysTableGroundStation>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct SysTableGroundStation {
+    pub id: u16,
+    pub utc_sync: bool,
+    pub location: Position,
+    pub spdu_version: u8,
+    pub freqs: Vec<SysTableFreqs>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct SysTableFreqs {
+    freq: f32,
+    master_frame_slot: u8,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct SysTablePartial {
+    part_num: u32,
+    parts_cnt: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -561,7 +673,8 @@ pub struct Position {
 pub struct UTCTime {
     hour: u8,
     min: u8,
-    sec: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sec: Option<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -576,4 +689,6 @@ pub struct LPDUFreqData {
 #[serde(deny_unknown_fields)]
 pub struct FreqId {
     id: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    freq: Option<f32>,
 }
