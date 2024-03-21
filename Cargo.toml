@@ -11,7 +11,7 @@ description = "Library for decoding and encoding ACARS and VDLM2 messages"
 serde = { version = "1.0.193", features = ["derive"] }
 serde_json = "1.0.108"
 log = "0.4.20"
-uuid = { version = "1.6.1", features = [ "v4", "fast-rng", "macro-diagnostics" ] }
+uuid = { version = "1.6.1", features = ["v4", "fast-rng", "macro-diagnostics"] }
 
 [dev-dependencies]
 rand = "0.8.5"
