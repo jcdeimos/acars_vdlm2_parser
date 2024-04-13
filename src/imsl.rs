@@ -72,5 +72,51 @@ impl ImslMessage {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Default)]
 pub struct ImslMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub bi: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has_text: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub more_to_come: Option<bool>,
+    pub msg_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plane_reg: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signal_unit: Option<SignalUnitBody>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SourceBody>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tak: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub freq: Option<f64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
+pub struct SignalUnitBody {
+    pub aes_id: i64,
+    pub ges_id: i64,
+    pub message_type: i64,
+    pub no_of_bytes_in_last_su: i64,
+    pub q_no: i64,
+    pub ref_no: i64,
+    pub seq_no: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
+pub struct SourceBody {
+    pub app: AppBody,
+    pub station_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
+pub struct AppBody {
+    pub name: String,
+    pub version: String,
 }
