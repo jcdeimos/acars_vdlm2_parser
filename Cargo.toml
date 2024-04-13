@@ -1,6 +1,6 @@
 [package]
 name = "acars_vdlm2_parser"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Alex Austin"]
 description = "Library for decoding and encoding ACARS and VDLM2 messages"
@@ -12,6 +12,7 @@ serde = { version = "1.0.201", features = ["derive"] }
 serde_json = "1.0.117"
 log = "0.4.21"
 uuid = { version = "1.8.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+chrono = "0.4.31"
 
 [dev-dependencies]
 rand = "0.8.5"

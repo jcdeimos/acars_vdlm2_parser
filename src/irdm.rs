@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use serde::{Serialize, Deserialize};
 use crate::{AppDetails, MessageResult};
 
@@ -65,12 +66,45 @@ impl IrdmMessage {
     }
 
     pub fn get_time(&self) -> Option<f64> {
-        self.timestamp.as_ref().copied()
+        Some(NaiveDateTime::parse_from_str(&self.acars.timestamp, "%Y-%m-%dT%H:%M:%S").unwrap().and_utc().timestamp() as f64)
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Default)]
 pub struct IrdmMessage {
+    pub app: AppBody,
+    pub source: SourceBody,
+    pub acars: AcarsBody,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub timestamp: Option<f64>,
+    pub freq: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level: Option<f64>,
+    pub header: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
+pub struct AppBody {
+    pub name: String,
+    pub version: String
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
+pub struct SourceBody {
+    pub transport: String,
+    pub protocol: String,
+    pub station_id: String
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
+pub struct AcarsBody {
+    pub timestamp: String,
+    pub errors: i64,
+    pub link_direction: String,
+    pub block_end: bool,
+    pub mode: String,
+    pub tail: String,
+    pub label: String,
+    pub block_id: String,
+    pub ack: String,
+    pub text: String,
 }
