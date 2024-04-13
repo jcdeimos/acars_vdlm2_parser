@@ -65,7 +65,7 @@ impl ImslMessage {
     }
 
     pub fn get_time(&self) -> Option<f64> {
-        self.timestamp.as_ref().copied()
+        Some(self.timestamp.as_ref().copied().unwrap() as f64)
     }
 }
 
@@ -93,9 +93,9 @@ pub struct ImslMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tak: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub timestamp: Option<f64>,
+    pub timestamp: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub freq: Option<f64>,
+    pub freq: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
