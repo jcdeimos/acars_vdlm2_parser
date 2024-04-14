@@ -21,12 +21,16 @@ use acars_vdlm2_parser::AcarsVdlm2Message;
 use acars_vdlm2_parser::acars::NewAcarsMessage;
 use acars_vdlm2_parser::vdlm2::NewVdlm2Message;
 use acars_vdlm2_parser::hfdl::NewHfdlMessage;
+use acars_vdlm2_parser::imsl::NewImslMessage;
+use acars_vdlm2_parser::irdm::NewIrdmMessage;
 
 /// Enum for indicating test data type.
 pub enum MessageType {
     Acars,
     Vdlm2,
     Hfdl,
+    Imsl,
+    Irdm,
     All,
 }
 
@@ -371,6 +375,8 @@ pub fn combine_files_of_message_type(
         MessageType::Acars => combine_found_files(glob("test_files/acars*")),
         MessageType::Vdlm2 => combine_found_files(glob("test_files/vdlm2*")),
         MessageType::Hfdl => combine_found_files(glob("test_files/hfdl*")),
+        MessageType::Imsl => combine_found_files(glob("test_files/imsl*")),
+        MessageType::Irdm => combine_found_files(glob("test_files/irdm*")),
         MessageType::All => combine_found_files(glob("test_files/*"))
     }
 }
@@ -383,7 +389,61 @@ pub fn load_files_of_message_type(
         MessageType::Acars => load_found_files(glob("test_files/acars*")),
         MessageType::Vdlm2 => load_found_files(glob("test_files/vdlm2*")),
         MessageType::Hfdl => load_found_files(glob("test_files/hfdl*")),
+        MessageType::Imsl => load_found_files(glob("test_files/imsl*")),
+        MessageType::Irdm => load_found_files(glob("test_files/irdm*")),
         MessageType::All => load_found_files(glob("test_files/*"))
+    }
+}
+
+/// Assistance function for processing the contents of a `&[String]` slice as irdm messages.
+pub fn process_file_as_irdm(contents: &[String]) {
+    let contents: Vec<String> = contents.to_vec();
+    let mut errors: Vec<String> = Vec::new();
+    for (entry, line) in contents.iter().enumerate() {
+        if let Err(parse_error) = line.to_irdm() {
+            let error_text: String = format!(
+                "Entry {} parse error: {}\nData: {}",
+                entry + 1,
+                parse_error,
+                line
+            );
+            errors.push(error_text);
+        }
+    }
+    match errors.is_empty() {
+        true => println!("No errors found in provided contents"),
+        false => {
+            println!("Errors found as follows");
+            for error in errors {
+                println!("{}", error);
+            }
+        }
+    }
+}
+
+/// Assistance function for processing the contents of a `&[String]` slice as imsl messages.
+pub fn process_file_as_imsl(contents: &[String]) {
+    let contents: Vec<String> = contents.to_vec();
+    let mut errors: Vec<String> = Vec::new();
+    for (entry, line) in contents.iter().enumerate() {
+        if let Err(parse_error) = line.to_imsl() {
+            let error_text: String = format!(
+                "Entry {} parse error: {}\nData: {}",
+                entry + 1,
+                parse_error,
+                line
+            );
+            errors.push(error_text);
+        }
+    }
+    match errors.is_empty() {
+        true => println!("No errors found in provided contents"),
+        false => {
+            println!("Errors found as follows");
+            for error in errors {
+                println!("{}", error);
+            }
+        }
     }
 }
 
