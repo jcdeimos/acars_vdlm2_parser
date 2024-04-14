@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use crate::{AppDetails, MessageResult};
+use crate::MessageResult;
 
 
 /// Trait for performing a decode if you wish to apply it to types other than the defaults done in this library.
