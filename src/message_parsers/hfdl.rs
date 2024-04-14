@@ -74,7 +74,7 @@ impl HfdlMessage {
 
     /// Clears a station name that may be set for `HfdlMessage`.
     /// ```
-    /// use acars_vdlm2_parser::hfdl::{HfdlBody, HfdlMessage};
+    /// use acars_vdlm2_parser::message_parsers::hfdl::{HfdlBody, HfdlMessage};
     /// let mut new_hfdl_message: HfdlMessage = HfdlMessage { hfdl: HfdlBody { station: Some("test_station".to_string()), ..Default::default() } };
     /// assert!(&new_hfdl_message.hfdl.station.is_some());
     /// new_hfdl_message.clear_station_name();

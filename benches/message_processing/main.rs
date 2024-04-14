@@ -10,7 +10,7 @@ use rand::seq::SliceRandom;
 use rand::rngs::ThreadRng;
 use rand::thread_rng;
 use rayon::prelude::*;
-use acars_vdlm2_parser::{AcarsVdlm2Message, DecodeMessage};
+use acars_vdlm2_parser::{ReceivedMessage, DecodeMessage};
 
 fn load_data() -> Option<Vec<String>> {
     combine_found_files(glob("test_files/*"))
@@ -62,12 +62,12 @@ fn duplicate_messages(messages: Vec<String>) -> Vec<String> {
     duplication
 }
 
-fn duplicate_parsed_messages(messages: Vec<AcarsVdlm2Message>) -> Vec<AcarsVdlm2Message> {
-    let mut duplication: Vec<AcarsVdlm2Message> = messages.to_vec();
+fn duplicate_parsed_messages(messages: Vec<ReceivedMessage>) -> Vec<ReceivedMessage> {
+    let mut duplication: Vec<ReceivedMessage> = messages.to_vec();
     let mut rng: ThreadRng = thread_rng();
     println!("Starting with {} items.", duplication.len());
     for _ in 0..270 {
-        let mut more: Vec<AcarsVdlm2Message> = messages.to_vec();
+        let mut more: Vec<ReceivedMessage> = messages.to_vec();
         duplication.append(&mut more);
         println!("We now have {} items.", duplication.len());
     }
@@ -76,19 +76,19 @@ fn duplicate_parsed_messages(messages: Vec<AcarsVdlm2Message>) -> Vec<AcarsVdlm2
     duplication
 }
 
-fn ingest(data: &[String]) -> Vec<AcarsVdlm2Message> {
-    let ok_messages: Arc<Mutex<Vec<AcarsVdlm2Message>>> = Arc::new(Mutex::new(Vec::new()));
+fn ingest(data: &[String]) -> Vec<ReceivedMessage> {
+    let ok_messages: Arc<Mutex<Vec<ReceivedMessage>>> = Arc::new(Mutex::new(Vec::new()));
     data.par_iter().for_each(| message: &String | {
         if let Ok(message) = message.decode_message() {
             ok_messages.lock().unwrap().push(message);
         }
     });
-    let ok_messages_lock: MutexGuard<Vec<AcarsVdlm2Message>> = ok_messages.lock().unwrap();
+    let ok_messages_lock: MutexGuard<Vec<ReceivedMessage>> = ok_messages.lock().unwrap();
     ok_messages_lock.to_vec()
 }
 
 fn process_messages_from_string(data: &[String]) {
-    let ok_messages: Arc<Mutex<Vec<AcarsVdlm2Message>>> = Arc::new(Mutex::new(Vec::new()));
+    let ok_messages: Arc<Mutex<Vec<ReceivedMessage>>> = Arc::new(Mutex::new(Vec::new()));
     data.par_iter().for_each(| message: &String | {
         if let Ok(message) = message.decode_message() {
             ok_messages.lock().unwrap().push(message);
@@ -96,9 +96,9 @@ fn process_messages_from_string(data: &[String]) {
     });
 }
 
-fn process_messages_to_string(data: &[AcarsVdlm2Message]) {
+fn process_messages_to_string(data: &[ReceivedMessage]) {
     let ok_messages: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
-    data.par_iter().for_each(| message: &AcarsVdlm2Message | {
+    data.par_iter().for_each(| message: &ReceivedMessage| {
         if let Ok(message) = message.to_string() {
             ok_messages.lock().unwrap().push(message);
         }
@@ -134,9 +134,9 @@ pub fn bench_processing_to_string(c: &mut Criterion) {
         eprintln!("Failed to load data.");
         return;
     };
-    let loaded_messages: Vec<AcarsVdlm2Message> = ingest(&loaded_data);
+    let loaded_messages: Vec<ReceivedMessage> = ingest(&loaded_data);
     println!("Duplicating and shuffling data.");
-    let duplicated_data: Vec<AcarsVdlm2Message> = duplicate_parsed_messages(loaded_messages);
+    let duplicated_data: Vec<ReceivedMessage> = duplicate_parsed_messages(loaded_messages);
     println!("Starting on the benching.");
     let mut iter_run: BenchmarkGroup<WallTime> = c.benchmark_group("message_processing_count_to_string");
     iter_run.measurement_time(Duration::from_secs(60));
@@ -144,7 +144,7 @@ pub fn bench_processing_to_string(c: &mut Criterion) {
     
     let iter_batch_sizes: Vec<usize> = vec![1, 10, 100, 1_000, 5_000, 10_000, 25_000, 50_000, 75_000, 100_000];
     for batch_size in &iter_batch_sizes {
-        let test_snippet: Vec<AcarsVdlm2Message> = duplicated_data[0..*batch_size].to_vec();
+        let test_snippet: Vec<ReceivedMessage> = duplicated_data[0..*batch_size].to_vec();
         iter_run.throughput(Throughput::Elements(iter_batch_sizes.len() as u64));
         iter_run.bench_with_input(BenchmarkId::new("AcarsVdlmMessage", batch_size), &test_snippet, |b, data|  {
             b.iter(|| process_messages_to_string(&data));

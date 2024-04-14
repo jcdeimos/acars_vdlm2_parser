@@ -1,7 +1,7 @@
 mod common;
 
 use std::error::Error;
-use acars_vdlm2_parser::vdlm2::{NewVdlm2Message, Vdlm2Message};
+use acars_vdlm2_parser::message_parsers::vdlm2::{NewVdlm2Message, Vdlm2Message};
 use crate::common::{combine_files_of_message_type, compare_errors, load_files_of_message_type, MessageType, process_file_as_vdlm2};
 
 /// This test will ingest contents from the vdlm2 sample files as a message per line to a `Vec<String>`.

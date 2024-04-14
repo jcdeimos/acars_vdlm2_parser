@@ -73,7 +73,7 @@ impl Vdlm2Message {
 
     /// Clears a station name that may be set for `Vdlm2Message`.
     /// ```
-    /// use acars_vdlm2_parser::vdlm2::{Vdlm2Body, Vdlm2Message};
+    /// use acars_vdlm2_parser::message_parsers::vdlm2::{Vdlm2Body, Vdlm2Message};
     /// let mut new_vdlm2_message: Vdlm2Message = Vdlm2Message { vdl2: Vdlm2Body { station: Some("test_station".to_string()), ..Default::default() } };
     /// assert!(&new_vdlm2_message.vdl2.station.is_some());
     /// new_vdlm2_message.clear_station_name();

@@ -9,6 +9,7 @@ use crate::{AppDetails, MessageResult};
 /// This is intended for specifically decoding to `AcarsMessage`.
 pub trait NewAcarsMessage {
     fn to_acars(&self) -> MessageResult<AcarsMessage>;
+    fn get_acars(&self) -> Option<AcarsMessage>;
 }
 
 /// Implementing `.to_acars()` for the type `String`.
@@ -18,6 +19,16 @@ impl NewAcarsMessage for String {
     fn to_acars(&self) -> MessageResult<AcarsMessage> {
         serde_json::from_str(self)
     }
+    
+    fn get_acars(&self) -> Option<AcarsMessage> {
+        match serde_json::from_str::<AcarsMessage>(self) {
+            Ok(message) => Some(message),
+            Err(acars_error) => {
+                error!("Failed to decode AcarsMessage: {acars_error}");
+                None
+            }
+        }
+    }
 }
 
 /// Supporting `.to_acars()` for the type `str`.
@@ -26,6 +37,16 @@ impl NewAcarsMessage for String {
 impl NewAcarsMessage for str {
     fn to_acars(&self) -> MessageResult<AcarsMessage> {
         serde_json::from_str(self)
+    }
+    
+    fn get_acars(&self) -> Option<AcarsMessage> {
+        match serde_json::from_str::<AcarsMessage>(self) {
+            Ok(message) => Some(message),
+            Err(acars_error) => {
+                error!("Failed to decode AcarsMessage: {acars_error}");
+                None
+            }
+        }
     }
 }
 
@@ -79,10 +100,6 @@ impl AcarsMessage {
         if let Some(app_details) = self.app.as_mut() {
             app_details.remove_proxy();
         }
-        // match self.app.as_mut() {
-        //     None => warn!("Attempted to remove proxy details but there isn't an app block, nothing to do"),
-        //     Some(app_details) => app_details.remove_proxy()
-        // }
     }
 
     /// Sets proxy details to the provided details and sets `proxied` to true.

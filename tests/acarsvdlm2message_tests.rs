@@ -1,7 +1,7 @@
 use std::error::Error;
 use rand::prelude::{SliceRandom, ThreadRng};
 use rand::thread_rng;
-use acars_vdlm2_parser::{AcarsVdlm2Message, DecodeMessage};
+use acars_vdlm2_parser::{ReceivedMessage, DecodeMessage};
 use crate::common::{combine_files_of_message_type, compare_errors, MessageType, SerialisationTarget, test_enum_serialisation};
 
 mod common;
@@ -18,7 +18,7 @@ fn test_determining_message() -> Result<(), Box<dyn Error>> {
         Err(load_error) => Err(load_error),
         Ok(mut all_messages) => {
             let mut rng: ThreadRng = thread_rng();
-            let mut successfully_decoded_items: Vec<AcarsVdlm2Message> = Vec::new();
+            let mut successfully_decoded_items: Vec<ReceivedMessage> = Vec::new();
             let mut failed_decodes: Vec<String> = Vec::new();
             all_messages.shuffle(&mut rng);
             for entry in all_messages {

@@ -17,10 +17,10 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde_json::Value;
 use thousands::Separable;
-use acars_vdlm2_parser::AcarsVdlm2Message;
-use acars_vdlm2_parser::acars::NewAcarsMessage;
-use acars_vdlm2_parser::vdlm2::NewVdlm2Message;
-use acars_vdlm2_parser::hfdl::NewHfdlMessage;
+use acars_vdlm2_parser::ReceivedMessage;
+use acars_vdlm2_parser::message_parsers::acars::NewAcarsMessage;
+use acars_vdlm2_parser::message_parsers::vdlm2::NewVdlm2Message;
+use acars_vdlm2_parser::message_parsers::hfdl::NewHfdlMessage;
 
 /// Enum for indicating test data type.
 pub enum MessageType {
@@ -486,7 +486,7 @@ pub fn compare_errors(
     }
 }
 
-pub fn test_enum_serialisation(message: &AcarsVdlm2Message, serialisation_target: SerialisationTarget) {
+pub fn test_enum_serialisation(message: &ReceivedMessage, serialisation_target: SerialisationTarget) {
     match serialisation_target {
         SerialisationTarget::String => {
             assert!(

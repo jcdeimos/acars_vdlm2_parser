@@ -2,15 +2,18 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use] extern crate log;
 
-use crate::acars::AcarsMessage;
-use crate::vdlm2::Vdlm2Message;
-use crate::hfdl::HfdlMessage;
+use crate::message_parsers::acars::AcarsMessage;
+use crate::message_parsers::vdlm2::Vdlm2Message;
+use crate::message_parsers::hfdl::HfdlMessage;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub mod acars;
-pub mod vdlm2;
-pub mod hfdl;
+pub mod message_parsers {
+    pub mod acars;
+    pub mod vdlm2;
+    pub mod hfdl;
+}
+
 
 /// Common return type for all serialisation/deserialisation functions.
 ///
@@ -21,36 +24,36 @@ pub type MessageResult<T> = Result<T, serde_json::Error>;
 ///
 /// The originating data must be in JSON format and have support for providing a `str`, and will not consume the source.
 pub trait DecodeMessage {
-    fn decode_message(&self) -> MessageResult<AcarsVdlm2Message>;
+    fn decode_message(&self) -> MessageResult<ReceivedMessage>;
 }
 
-/// Provides functionality for decoding a `String` to `AcarsVdlm2Message`.
+/// Provides functionality for decoding a `String` to `ReceivedMessage`.
 ///
 /// This does not consume the `String`.
 impl DecodeMessage for String {
-    fn decode_message(&self) -> MessageResult<AcarsVdlm2Message> {
+    fn decode_message(&self) -> MessageResult<ReceivedMessage> {
         serde_json::from_str(self)
     }
 }
 
-/// Provides functionality for decoding a `str` to `AcarsVdlm2Message`.
+/// Provides functionality for decoding a `str` to `ReceivedMessage`.
 ///
 /// This does not consume the `str`.
 impl DecodeMessage for str {
-    fn decode_message(&self) -> MessageResult<AcarsVdlm2Message> {
+    fn decode_message(&self) -> MessageResult<ReceivedMessage> {
         serde_json::from_str(self)
     }
 }
 
-/// Implementation of `AcarsVdlm2Message`.
-impl AcarsVdlm2Message {
-    /// Converts `AcarsVdlm2Message` to `String`.
+/// Implementation of `ReceivedMessage`.
+impl ReceivedMessage {
+    /// Converts `ReceivedMessage` to `String`.
     pub fn to_string(&self) -> MessageResult<String> {
         trace!("Converting {:?} to a string", &self);
         serde_json::to_string(self)
     }
 
-    /// Converts `AcarsVdlm2Message` to `String` and appends a `\n` to the end.
+    /// Converts `ReceivedMessage` to `String` and appends a `\n` to the end.
     pub fn to_string_newline(&self) -> MessageResult<String> {
         trace!("Converting {:?} to a string and appending a newline", &self);
         match serde_json::to_string(self) {
@@ -59,7 +62,7 @@ impl AcarsVdlm2Message {
         }
     }
 
-    /// Converts `AcarsVdlm2Message` to a `String` encoded as bytes.
+    /// Converts `ReceivedMessage` to a `String` encoded as bytes.
     ///
     /// The output is returned as a `Vec<u8>`.
     pub fn to_bytes(&self) -> MessageResult<Vec<u8>> {
@@ -70,7 +73,7 @@ impl AcarsVdlm2Message {
         }
     }
 
-    /// Converts `AcarsVdlm2Message` to a `String` terminated with a `\n` and encoded as bytes.
+    /// Converts `ReceivedMessage` to a `String` terminated with a `\n` and encoded as bytes.
     ///
     /// The output is returned as a `Vec<u8>`.
     pub fn to_bytes_newline(&self) -> MessageResult<Vec<u8>> {
@@ -81,42 +84,54 @@ impl AcarsVdlm2Message {
         }
     }
 
-    /// Clears a station name that may be set for either `Vdlm2Message` or `AcarsMessage`.
+    /// Clears a station name that may be set on:
+    /// - `Vdlm2Message`.
+    /// - `AcarsMessage`.
+    /// - `HfdlMessage`.
     pub fn clear_station_name(&mut self) {
         trace!("Clearing the station name for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_station_name(),
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_station_name(),
-            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_station_name(),
+            ReceivedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_station_name(),
+            ReceivedMessage::AcarsMessage(acars) => acars.clear_station_name(),
+            ReceivedMessage::HfdlMessage(hfdl) => hfdl.clear_station_name(),
         }
     }
 
-    /// Sets a station name to the provided value for either `Vdlm2Message` or `AcarsMessage`.
+    /// Sets a station name to the provided value for:
+    /// - `Vdlm2Message`.
+    /// - `AcarsMessage`.
+    /// - `HfdlMessage`.
     pub fn set_station_name(&mut self, station_name: &str) {
         trace!("Setting the station name to {} for {:?}", station_name, &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
+            ReceivedMessage::Vdlm2Message(vdlm2) =>
                 vdlm2.set_station_name(station_name),
-            AcarsVdlm2Message::AcarsMessage(acars) =>
+            ReceivedMessage::AcarsMessage(acars) =>
                 acars.set_station_name(station_name),
-            AcarsVdlm2Message::HfdlMessage(hfdl) =>
+            ReceivedMessage::HfdlMessage(hfdl) =>
                 hfdl.set_station_name(station_name),
         }
     }
 
-    /// Clears any proxy details that may be set for either `Vdlm2Message` or `AcarsMessage`.
+    /// Clears any proxy details that may be set for:
+    /// - `Vdlm2Message`.
+    /// - `AcarsMessage`.
+    /// - `HfdlMessage`.
     pub fn clear_proxy_details(&mut self) {
         trace!("Clearing the proxy details for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_proxy_details(),
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_proxy_details(),
-            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_proxy_details(),
+            ReceivedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_proxy_details(),
+            ReceivedMessage::AcarsMessage(acars) => acars.clear_proxy_details(),
+            ReceivedMessage::HfdlMessage(hfdl) => hfdl.clear_proxy_details(),
         }
     }
 
     /// Sets proxy details to the provided details and sets `proxied` to true.
     ///
-    /// This invokes `AppDetails::new()` for either `Vdlm2Message` or `AcarsMessage` and updates the record.
+    /// This invokes `AppDetails::new()` and updates the record for:
+    /// - `Vdlm2Message`.
+    /// - `AcarsMessage`.
+    /// - `HfdlMessage`.
     pub fn set_proxy_details(
         &mut self,
         proxied_by: &str,
@@ -125,136 +140,156 @@ impl AcarsVdlm2Message {
         trace!("Setting the proxy details for {:?} to include proxy {} and router version {}",
             &self, proxied_by, acars_router_version);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) =>
+            ReceivedMessage::Vdlm2Message(vdlm2) =>
                 vdlm2.set_proxy_details(proxied_by, acars_router_version),
-            AcarsVdlm2Message::AcarsMessage(acars) =>
+            ReceivedMessage::AcarsMessage(acars) =>
                 acars.set_proxy_details(proxied_by, acars_router_version),
-            AcarsVdlm2Message::HfdlMessage(hfdl) =>
+            ReceivedMessage::HfdlMessage(hfdl) =>
                 hfdl.set_proxy_details(proxied_by, acars_router_version),
         }
     }
 
-    /// Clears the time details from the message.
+    /// Clears the time details from the message for:
+    /// - `Vdlm2Message`.
+    /// - `AcarsMessage`.
+    /// - `HfdlMessage`.
     pub fn clear_time(&mut self) {
         trace!("Clearing the time for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_time(),
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_time(),
-            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_time(),
+            ReceivedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_time(),
+            ReceivedMessage::AcarsMessage(acars) => acars.clear_time(),
+            ReceivedMessage::HfdlMessage(hfdl) => hfdl.clear_time(),
         }
     }
 
-    /// Retrieves the time information from the message.
+    /// Retrieves the time information from the message for:
+    /// - `Vdlm2Message`.
+    /// - `AcarsMessage`.
+    /// - `HfdlMessage`.
     pub fn get_time(&self) -> Option<f64> {
         trace!("Getting the time from {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.get_time(),
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.get_time(),
-            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.get_time()
+            ReceivedMessage::Vdlm2Message(vdlm2) => vdlm2.get_time(),
+            ReceivedMessage::AcarsMessage(acars) => acars.get_time(),
+            ReceivedMessage::HfdlMessage(hfdl) => hfdl.get_time()
         }
     }
 
-    /// Clears the `freq_skew` field from a `Vdlm2Message`.
+    /// Clears the `freq_skew` field from:
+    /// - `Vdlm2Message`.
+    /// - `HfdlMessage`.
     pub fn clear_freq_skew(&mut self) {
         trace!("Clearing the frequency skew for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_freq_skew(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
-            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_freq_skew(),
+            ReceivedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_freq_skew(),
+            ReceivedMessage::AcarsMessage(_) => {}
+            ReceivedMessage::HfdlMessage(hfdl) => hfdl.clear_freq_skew(),
         }
     }
 
-    /// Clears the `hdr_bits_fixed` field from a `Vdlm2Message`.
+    /// Clears the `hdr_bits_fixed` field from:
+    /// - `Vdlm2Message`.
     pub fn clear_hdr_bits_fixed(&mut self) {
         trace!("Clearing the hdr bits fixed for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_hdr_bits_fixed(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
-            AcarsVdlm2Message::HfdlMessage(_) => {}
+            ReceivedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_hdr_bits_fixed(),
+            ReceivedMessage::AcarsMessage(_) => {}
+            ReceivedMessage::HfdlMessage(_) => {}
         }
     }
 
-    /// Clears the `noise_level` field from a `Vdlm2Message`.
+    /// Clears the `noise_level` field from:
+    /// - `Vdlm2Message`.
+    /// - `HfdlMessage`.
     pub fn clear_noise_level(&mut self) {
         trace!("Clearing the noise level for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_noise_level(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
-            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_noise_level()
+            ReceivedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_noise_level(),
+            ReceivedMessage::AcarsMessage(_) => {}
+            ReceivedMessage::HfdlMessage(hfdl) => hfdl.clear_noise_level()
         }
     }
 
-    /// Clears the `octets_corrected_by_fec` field from a `Vdlm2Message`.
+    /// Clears the `octets_corrected_by_fec` field from:
+    /// - `Vdlm2Message`.
     pub fn clear_octets_corrected_by_fec(&mut self) {
         trace!("Clearing the octets corrected by fec for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_octets_corrected_by_fec(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
-            AcarsVdlm2Message::HfdlMessage(_) => {}
+            ReceivedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_octets_corrected_by_fec(),
+            ReceivedMessage::AcarsMessage(_) => {}
+            ReceivedMessage::HfdlMessage(_) => {}
         }
     }
 
-    /// Clears the `sig_level` field from a `Vdlm2Message`.
+    /// Clears the `sig_level` field from:
+    /// - `Vdlm2Message`.
+    /// - `HfdlMessage`.
     pub fn clear_sig_level(&mut self) {
         trace!("Clearing the signal level for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_sig_level(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
-            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_sig_level(),
+            ReceivedMessage::Vdlm2Message(vdlm2) => vdlm2.clear_sig_level(),
+            ReceivedMessage::AcarsMessage(_) => {}
+            ReceivedMessage::HfdlMessage(hfdl) => hfdl.clear_sig_level(),
         }
     }
 
-    /// Clears the `channel` field from a `AcarsMessage`.
+    /// Clears the `channel` field from:
+    /// - `AcarsMessage`.
     pub fn clear_channel(&mut self) {
         trace!("Clearing the channel for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(_) => {}
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_channel(),
-            AcarsVdlm2Message::HfdlMessage(_) => {}
+            ReceivedMessage::Vdlm2Message(_) => {}
+            ReceivedMessage::AcarsMessage(acars) => acars.clear_channel(),
+            ReceivedMessage::HfdlMessage(_) => {}
         }
     }
 
-    /// Clears the `error` field from a `AcarsMessage`.
+    /// Clears the `error` field from:
+    /// - `AcarsMessage`.
     pub fn clear_error(&mut self) {
         trace!("Clearing the error field for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(_) => {}
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_error(),
-            AcarsVdlm2Message::HfdlMessage(_) => {}
+            ReceivedMessage::Vdlm2Message(_) => {}
+            ReceivedMessage::AcarsMessage(acars) => acars.clear_error(),
+            ReceivedMessage::HfdlMessage(_) => {}
         }
     }
 
-    /// Clears the `level` field from a `AcarsMessage`.
+    /// Clears the `level` field from:
+    /// - `AcarsMessage`.
     pub fn clear_level(&mut self) {
         trace!("Clearing the level field for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(_) => {}
-            AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_level(),
-            AcarsVdlm2Message::HfdlMessage(_) => {}
+            ReceivedMessage::Vdlm2Message(_) => {}
+            ReceivedMessage::AcarsMessage(acars) => acars.clear_level(),
+            ReceivedMessage::HfdlMessage(_) => {}
         }
     }
 }
 
-/// This will automagically serialise to either a `Vdlm2Message` or `AcarsMessage`.
+/// This will automagically serialise to one of the supported message types.
 ///
 /// This simplifies the handling of messaging by not needing to identify it first.
 /// It handles identification by looking at the provided data and seeing which format matches it best.
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
-pub enum AcarsVdlm2Message {
+pub enum ReceivedMessage {
     Vdlm2Message(Vdlm2Message),
     AcarsMessage(AcarsMessage),
     HfdlMessage(HfdlMessage),
 }
 
-impl Default for AcarsVdlm2Message {
+impl Default for ReceivedMessage {
     fn default() -> Self {
         Self::Vdlm2Message(Default::default())
     }
 }
 
-/// This struct lives here because it is used by both `Vdlm2Message` and `AcarsMessage`.
+/// This struct lives here because it is used by:
+/// - `Vdlm2Message`.
+/// - `AcarsMessage`.
+/// - `HfdlMessage`.
 ///
 /// This does not normally exist on `AcarsMessage` and has been added as part of the implementation for the acars_router project.
 /// ```
