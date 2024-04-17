@@ -65,7 +65,7 @@ impl ImslMessage {
     }
 
     pub fn get_time(&self) -> Option<f64> {
-        Some(self.timestamp.as_ref().copied().unwrap() as f64)
+        Some(self.timestamp? as f64)
     }
 }
 

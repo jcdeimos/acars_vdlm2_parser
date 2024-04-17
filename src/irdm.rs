@@ -66,7 +66,7 @@ impl IrdmMessage {
     }
 
     pub fn get_time(&self) -> Option<f64> {
-        Some(NaiveDateTime::parse_from_str(&self.acars.timestamp, "%Y-%m-%dT%H:%M:%S").unwrap().and_utc().timestamp() as f64)
+        Some(NaiveDateTime::parse_from_str(&self.acars.timestamp, "%Y-%m-%dT%H:%M:%S").ok()?.and_utc().timestamp() as f64)
     }
 }
 
