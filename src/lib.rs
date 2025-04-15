@@ -5,12 +5,16 @@ extern crate serde_json;
 use crate::acars::AcarsMessage;
 use crate::vdlm2::Vdlm2Message;
 use crate::hfdl::HfdlMessage;
+use crate::imsl::ImslMessage;
+use crate::irdm::IrdmMessage;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub mod acars;
 pub mod vdlm2;
 pub mod hfdl;
+pub mod imsl;
+pub mod irdm;
 
 /// Common return type for all serialisation/deserialisation functions.
 ///
@@ -88,6 +92,8 @@ impl AcarsVdlm2Message {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_station_name(),
             AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_station_name(),
             AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_station_name(),
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 
@@ -101,6 +107,8 @@ impl AcarsVdlm2Message {
                 acars.set_station_name(station_name),
             AcarsVdlm2Message::HfdlMessage(hfdl) =>
                 hfdl.set_station_name(station_name),
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 
@@ -111,6 +119,8 @@ impl AcarsVdlm2Message {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_proxy_details(),
             AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_proxy_details(),
             AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_proxy_details(),
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 
@@ -131,6 +141,8 @@ impl AcarsVdlm2Message {
                 acars.set_proxy_details(proxied_by, acars_router_version),
             AcarsVdlm2Message::HfdlMessage(hfdl) =>
                 hfdl.set_proxy_details(proxied_by, acars_router_version),
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 
@@ -140,7 +152,9 @@ impl AcarsVdlm2Message {
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_time(),
             AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_time(),
-            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_time(),
+            AcarsVdlm2Message::HfdlMessage(hfdl) =>hfdl.clear_time(),
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 
@@ -150,7 +164,9 @@ impl AcarsVdlm2Message {
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.get_time(),
             AcarsVdlm2Message::AcarsMessage(acars) => acars.get_time(),
-            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.get_time()
+            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.get_time(),
+            AcarsVdlm2Message::ImslMessage(imsl) => imsl.get_time(),
+            AcarsVdlm2Message::IrdmMessage(irdm) => irdm.get_time(),
         }
     }
 
@@ -159,8 +175,10 @@ impl AcarsVdlm2Message {
         trace!("Clearing the frequency skew for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_freq_skew(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
+            AcarsVdlm2Message::AcarsMessage(_) => {},
             AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_freq_skew(),
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 
@@ -169,8 +187,10 @@ impl AcarsVdlm2Message {
         trace!("Clearing the hdr bits fixed for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_hdr_bits_fixed(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
-            AcarsVdlm2Message::HfdlMessage(_) => {}
+            AcarsVdlm2Message::AcarsMessage(_) => {},
+            AcarsVdlm2Message::HfdlMessage(_) => {},
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 
@@ -179,8 +199,10 @@ impl AcarsVdlm2Message {
         trace!("Clearing the noise level for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_noise_level(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
-            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_noise_level()
+            AcarsVdlm2Message::AcarsMessage(_) => {},
+            AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_noise_level(),
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 
@@ -189,8 +211,10 @@ impl AcarsVdlm2Message {
         trace!("Clearing the octets corrected by fec for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_octets_corrected_by_fec(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
-            AcarsVdlm2Message::HfdlMessage(_) => {}
+            AcarsVdlm2Message::AcarsMessage(_) => {},
+            AcarsVdlm2Message::HfdlMessage(_) => {},
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 
@@ -199,8 +223,10 @@ impl AcarsVdlm2Message {
         trace!("Clearing the signal level for {:?}", &self);
         match self {
             AcarsVdlm2Message::Vdlm2Message(vdlm2) => vdlm2.clear_sig_level(),
-            AcarsVdlm2Message::AcarsMessage(_) => {}
+            AcarsVdlm2Message::AcarsMessage(_) => {},
             AcarsVdlm2Message::HfdlMessage(hfdl) => hfdl.clear_sig_level(),
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 
@@ -208,9 +234,11 @@ impl AcarsVdlm2Message {
     pub fn clear_channel(&mut self) {
         trace!("Clearing the channel for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(_) => {}
+            AcarsVdlm2Message::Vdlm2Message(_) => {},
             AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_channel(),
-            AcarsVdlm2Message::HfdlMessage(_) => {}
+            AcarsVdlm2Message::HfdlMessage(_) => {},
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 
@@ -218,9 +246,11 @@ impl AcarsVdlm2Message {
     pub fn clear_error(&mut self) {
         trace!("Clearing the error field for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(_) => {}
+            AcarsVdlm2Message::Vdlm2Message(_) => {},
             AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_error(),
-            AcarsVdlm2Message::HfdlMessage(_) => {}
+            AcarsVdlm2Message::HfdlMessage(_) => {},
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 
@@ -228,9 +258,11 @@ impl AcarsVdlm2Message {
     pub fn clear_level(&mut self) {
         trace!("Clearing the level field for {:?}", &self);
         match self {
-            AcarsVdlm2Message::Vdlm2Message(_) => {}
+            AcarsVdlm2Message::Vdlm2Message(_) => {},
             AcarsVdlm2Message::AcarsMessage(acars) => acars.clear_level(),
-            AcarsVdlm2Message::HfdlMessage(_) => {}
+            AcarsVdlm2Message::HfdlMessage(_) => {},
+            AcarsVdlm2Message::ImslMessage(_) => {},
+            AcarsVdlm2Message::IrdmMessage(_) => {},
         }
     }
 }
@@ -246,6 +278,8 @@ pub enum AcarsVdlm2Message {
     Vdlm2Message(Vdlm2Message),
     AcarsMessage(AcarsMessage),
     HfdlMessage(HfdlMessage),
+    ImslMessage(ImslMessage),
+    IrdmMessage(IrdmMessage),
 }
 
 impl Default for AcarsVdlm2Message {
